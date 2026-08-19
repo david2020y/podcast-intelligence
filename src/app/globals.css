@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-body), "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: var(--font-data), "PingFang SC", monospace;
+  --font-heading: var(--font-display), "PingFang SC", "Microsoft YaHei", sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -48,73 +48,81 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/*
+ * "信号面板 / Signal Console" theme — mixing-board & oscilloscope inspired: warm amber
+ * phosphor accent instead of the more common cool green/blue terminal look, tabular data
+ * treated in mono. Values are hand-picked hex (not oklch, unlike the shadcn scaffold
+ * defaults) to match the approved design proposal exactly rather than risk drift through an
+ * oklch re-derivation. Light mode is a daytime sibling of the same identity — same amber
+ * accent and warm (not neutral-grey) paper background — not a generic light theme swapped in.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #faf6f0;
+  --foreground: #211a12;
+  --card: #fffdfa;
+  --card-foreground: #211a12;
+  --popover: #fffdfa;
+  --popover-foreground: #211a12;
+  --primary: #d99a35;
+  --primary-foreground: #211a12;
+  --secondary: #f3ead9;
+  --secondary-foreground: #211a12;
+  --muted: #f3ead9;
+  --muted-foreground: #7a6c58;
+  --accent: #fbe8c8;
+  --accent-foreground: #8a5a1f;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: #e6dbc8;
+  --input: #e6dbc8;
+  --ring: #c9891f;
+  --chart-1: #d99a35;
+  --chart-2: #a8998a;
+  --chart-3: #8a5a1f;
+  --chart-4: #c9891f;
+  --chart-5: #7a6c58;
+  --radius: 0.4rem;
+  --sidebar: #f7f0e2;
+  --sidebar-foreground: #211a12;
+  --sidebar-primary: #d99a35;
+  --sidebar-primary-foreground: #211a12;
+  --sidebar-accent: #fbe8c8;
+  --sidebar-accent-foreground: #8a5a1f;
+  --sidebar-border: #e6dbc8;
+  --sidebar-ring: #c9891f;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #120d0a;
+  --foreground: #f2e8dc;
+  --card: #1c1410;
+  --card-foreground: #f2e8dc;
+  --popover: #1c1410;
+  --popover-foreground: #f2e8dc;
+  --primary: #ffb454;
+  --primary-foreground: #1c1410;
+  --secondary: #2a1f16;
+  --secondary-foreground: #f2e8dc;
+  --muted: #211711;
+  --muted-foreground: #a8998a;
+  --accent: #2a1c10;
+  --accent-foreground: #ffb454;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: #3a2a1c;
+  --input: #3a2a1c;
+  --ring: #ffb454;
+  --chart-1: #ffb454;
+  --chart-2: #a8998a;
+  --chart-3: #d99a35;
+  --chart-4: #8a5a1f;
+  --chart-5: #6b5d4c;
+  --sidebar: #1c1410;
+  --sidebar-foreground: #f2e8dc;
+  --sidebar-primary: #ffb454;
+  --sidebar-primary-foreground: #1c1410;
+  --sidebar-accent: #2a1c10;
+  --sidebar-accent-foreground: #ffb454;
+  --sidebar-border: #3a2a1c;
+  --sidebar-ring: #ffb454;
 }
 
 @layer base {
@@ -126,5 +134,31 @@
   }
   html {
     @apply font-sans;
+  }
+}
+
+@layer components {
+  /* Dashed meter-tick underline for a stat readout, like a VU meter scale. */
+  .stat-meter {
+    height: 3px;
+    border-radius: 2px;
+    background-image: repeating-linear-gradient(90deg, var(--primary) 0 3px, transparent 3px 5px);
+    opacity: 0.55;
+  }
+
+  /* Faint waveform silhouette overlaid on a podcast cover, for cards where the cover
+     wrapper has position: relative and this sits as its last child. */
+  .waveform-accent {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: 12%;
+    height: 34%;
+    background-image: linear-gradient(to top, var(--primary) 0 100%);
+    -webkit-mask-image: repeating-linear-gradient(90deg, #000 0 2px, transparent 2px 4px);
+    mask-image: repeating-linear-gradient(90deg, #000 0 2px, transparent 2px 4px);
+    clip-path: polygon(0% 60%, 8% 30%, 16% 80%, 24% 10%, 32% 55%, 40% 40%, 48% 90%, 56% 20%, 64% 65%, 72% 45%, 80% 75%, 88% 15%, 96% 50%, 100% 35%, 100% 100%, 0% 100%);
+    opacity: 0.35;
+    pointer-events: none;
   }
 }
