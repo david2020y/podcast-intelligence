@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Rss, Store, Search, Bookmark, Settings2 } from "lucide-react";
+import { LayoutDashboard, Rss, Store, Search, Bookmark, Settings2, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
@@ -14,13 +15,25 @@ const NAV_ITEMS = [
   { href: "/settings", label: "设置", icon: Settings2 },
 ];
 
+const ADMIN_NAV_ITEM = { href: "/admin/podcasts", label: "后台管理", icon: ShieldCheck };
+
 export function SidebarNav() {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/status")
+      .then((r) => r.json())
+      .then((data) => setIsAdmin(!!data.isAdmin))
+      .catch(() => {});
+  }, []);
+
+  const items = isAdmin ? [...NAV_ITEMS, ADMIN_NAV_ITEM] : NAV_ITEMS;
 
   return (
     <nav className="flex flex-col gap-1 p-3">
-      {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+      {items.map(({ href, label, icon: Icon }) => {
+        const active = href === "/" ? pathname === "/" : href === ADMIN_NAV_ITEM.href ? pathname.startsWith("/admin") : pathname.startsWith(href);
         return (
           <Link
             key={href}
