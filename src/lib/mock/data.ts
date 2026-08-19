@@ -1,0 +1,544 @@
+import type {
+  PodcastShow,
+  PodcastEpisode,
+  EpisodeTranscript,
+  EpisodeAnalysisRecord,
+  Collection,
+  CollectionItem,
+} from "@/lib/types";
+
+/**
+ * Static demo dataset used by the mock repository when Supabase / AI keys
+ * are not configured. IDs are stable so relations resolve deterministically.
+ */
+
+const daysAgo = (n: number) => new Date(Date.now() - n * 86400_000).toISOString();
+
+export const MOCK_SHOWS: PodcastShow[] = [
+  {
+    id: "10000000-0000-0000-0000-000000000001",
+    title: "美股价值线",
+    description: "聚焦美股基本面研究、财报解读与长期价值投资的中文播客，主持人张伟与嘉宾深入拆解公司护城河。",
+    coverUrl: "https://picsum.photos/seed/valueline/400/400",
+    author: "张伟",
+    rssUrl: "https://example.com/feeds/value-line.xml",
+    websiteUrl: "https://valueline.example.com",
+    category: "投资理财",
+    language: "zh-CN",
+    sourcePlatform: "rss",
+    lastSyncedAt: daysAgo(0.2),
+    createdAt: daysAgo(120),
+    updatedAt: daysAgo(0.2),
+    subscriptionStatus: "active",
+    episodeCount: 4,
+  },
+  {
+    id: "10000000-0000-0000-0000-000000000002",
+    title: "链上前沿",
+    description: "追踪加密货币与区块链行业一线动态，涵盖 BTC、ETH 生态、DeFi、监管政策与链上数据解读。",
+    coverUrl: "https://picsum.photos/seed/onchain/400/400",
+    author: "陈晓 & 林悦",
+    rssUrl: "https://example.com/feeds/on-chain-frontier.xml",
+    websiteUrl: "https://onchainfrontier.example.com",
+    category: "加密货币",
+    language: "zh-CN",
+    sourcePlatform: "rss",
+    lastSyncedAt: daysAgo(0.5),
+    createdAt: daysAgo(200),
+    updatedAt: daysAgo(0.5),
+    subscriptionStatus: "active",
+    episodeCount: 3,
+  },
+  {
+    id: "10000000-0000-0000-0000-000000000003",
+    title: "AI 创业内参",
+    description: "对话 AI 领域创业者与投资人，聚焦大模型、AI 应用落地与科技行业投资趋势。",
+    coverUrl: "https://picsum.photos/seed/aiinsider/400/400",
+    author: "王硕",
+    rssUrl: "https://example.com/feeds/ai-insider.xml",
+    websiteUrl: "https://aiinsider.example.com",
+    category: "科技",
+    language: "zh-CN",
+    sourcePlatform: "rss",
+    lastSyncedAt: daysAgo(1),
+    createdAt: daysAgo(90),
+    updatedAt: daysAgo(1),
+    subscriptionStatus: "active",
+    episodeCount: 3,
+  },
+];
+
+const showRef = (id: string) => {
+  const s = MOCK_SHOWS.find((x) => x.id === id)!;
+  return { id: s.id, title: s.title, coverUrl: s.coverUrl, author: s.author, sourcePlatform: s.sourcePlatform };
+};
+
+export const MOCK_EPISODES: PodcastEpisode[] = [
+  {
+    id: "20000000-0000-0000-0000-000000000001",
+    showId: MOCK_SHOWS[0].id,
+    guid: "value-line-ep-42",
+    title: "EP42：英伟达财报深度拆解——护城河还在吗？",
+    description: "本期与半导体行业分析师陈明一起拆解英伟达最新财报，讨论数据中心业务增速、毛利率变化与竞争格局。",
+    publishedAt: daysAgo(2),
+    durationSeconds: 5400,
+    audioUrl: "https://example.com/audio/value-line-42.mp3",
+    episodeUrl: "https://valueline.example.com/ep42",
+    coverUrl: "https://picsum.photos/seed/valueline/400/400",
+    guests: ["陈明"],
+    processingStatus: "completed",
+    transcriptStatus: "completed",
+    analysisStatus: "completed",
+    createdAt: daysAgo(2),
+    updatedAt: daysAgo(1.9),
+    show: showRef(MOCK_SHOWS[0].id),
+    isFavorited: true,
+    tags: ["英伟达", "半导体", "财报", "数据中心"],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000002",
+    showId: MOCK_SHOWS[0].id,
+    guid: "value-line-ep-41",
+    title: "EP41：巴菲特股东信里没说的三件事",
+    description: "解读伯克希尔最新股东信，聚焦现金储备、保险业务与接班安排。",
+    publishedAt: daysAgo(9),
+    durationSeconds: 4800,
+    audioUrl: "https://example.com/audio/value-line-41.mp3",
+    episodeUrl: "https://valueline.example.com/ep41",
+    coverUrl: "https://picsum.photos/seed/valueline/400/400",
+    guests: [],
+    processingStatus: "completed",
+    transcriptStatus: "pending",
+    analysisStatus: "pending",
+    createdAt: daysAgo(9),
+    updatedAt: daysAgo(9),
+    show: showRef(MOCK_SHOWS[0].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000003",
+    showId: MOCK_SHOWS[0].id,
+    guid: "value-line-ep-40",
+    title: "EP40：消费股的至暗时刻过去了吗",
+    description: "与消费行业基金经理讨论必需消费品板块估值修复的可能性。",
+    publishedAt: daysAgo(16),
+    durationSeconds: 5100,
+    audioUrl: "https://example.com/audio/value-line-40.mp3",
+    episodeUrl: "https://valueline.example.com/ep40",
+    coverUrl: "https://picsum.photos/seed/valueline/400/400",
+    guests: ["李静"],
+    processingStatus: "pending",
+    transcriptStatus: "pending",
+    analysisStatus: "pending",
+    createdAt: daysAgo(16),
+    updatedAt: daysAgo(16),
+    show: showRef(MOCK_SHOWS[0].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000004",
+    showId: MOCK_SHOWS[0].id,
+    guid: "value-line-ep-39",
+    title: "EP39：如何用现金流折现给一家公司估值",
+    description: "从零讲解 DCF 模型的构建逻辑与常见陷阱。",
+    publishedAt: daysAgo(23),
+    durationSeconds: 4200,
+    audioUrl: "https://example.com/audio/value-line-39.mp3",
+    episodeUrl: "https://valueline.example.com/ep39",
+    coverUrl: "https://picsum.photos/seed/valueline/400/400",
+    guests: [],
+    processingStatus: "failed",
+    transcriptStatus: "failed",
+    analysisStatus: "pending",
+    createdAt: daysAgo(23),
+    updatedAt: daysAgo(22),
+    show: showRef(MOCK_SHOWS[0].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000005",
+    showId: MOCK_SHOWS[1].id,
+    guid: "onchain-ep-88",
+    title: "EP88：比特币减半后的矿工经济学",
+    description: "与矿业公司创始人赵磊聊减半后的挖矿成本、算力迁移与矿工囤币行为。",
+    publishedAt: daysAgo(1),
+    durationSeconds: 3900,
+    audioUrl: "https://example.com/audio/onchain-88.mp3",
+    episodeUrl: "https://onchainfrontier.example.com/ep88",
+    coverUrl: "https://picsum.photos/seed/onchain/400/400",
+    guests: ["赵磊"],
+    processingStatus: "completed",
+    transcriptStatus: "completed",
+    analysisStatus: "completed",
+    createdAt: daysAgo(1),
+    updatedAt: daysAgo(0.9),
+    show: showRef(MOCK_SHOWS[1].id),
+    isFavorited: true,
+    tags: ["比特币", "减半", "矿业", "算力"],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000006",
+    showId: MOCK_SHOWS[1].id,
+    guid: "onchain-ep-87",
+    title: "EP87：ETH 现货 ETF 通过之后会发生什么",
+    description: "分析以太坊现货 ETF 对机构资金流入的潜在影响。",
+    publishedAt: daysAgo(8),
+    durationSeconds: 3600,
+    audioUrl: "https://example.com/audio/onchain-87.mp3",
+    episodeUrl: "https://onchainfrontier.example.com/ep87",
+    coverUrl: "https://picsum.photos/seed/onchain/400/400",
+    guests: [],
+    processingStatus: "processing",
+    transcriptStatus: "processing",
+    analysisStatus: "pending",
+    createdAt: daysAgo(8),
+    updatedAt: daysAgo(0.1),
+    show: showRef(MOCK_SHOWS[1].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000007",
+    showId: MOCK_SHOWS[1].id,
+    guid: "onchain-ep-86",
+    title: "EP86：Layer2 之战——谁能笑到最后",
+    description: "对比 Arbitrum、Optimism 与 Base 的生态数据与代币经济模型。",
+    publishedAt: daysAgo(15),
+    durationSeconds: 4500,
+    audioUrl: "https://example.com/audio/onchain-86.mp3",
+    episodeUrl: "https://onchainfrontier.example.com/ep86",
+    coverUrl: "https://picsum.photos/seed/onchain/400/400",
+    guests: ["Kevin Zhou"],
+    processingStatus: "pending",
+    transcriptStatus: "pending",
+    analysisStatus: "pending",
+    createdAt: daysAgo(15),
+    updatedAt: daysAgo(15),
+    show: showRef(MOCK_SHOWS[1].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000008",
+    showId: MOCK_SHOWS[2].id,
+    guid: "ai-insider-ep-15",
+    title: "EP15：从 0 到 1 做一个 AI Agent 创业公司",
+    description: "对话连续创业者刘畅，聊 AI Agent 赛道的产品定位与商业化路径。",
+    publishedAt: daysAgo(3),
+    durationSeconds: 4700,
+    audioUrl: "https://example.com/audio/ai-insider-15.mp3",
+    episodeUrl: "https://aiinsider.example.com/ep15",
+    coverUrl: "https://picsum.photos/seed/aiinsider/400/400",
+    guests: ["刘畅"],
+    processingStatus: "completed",
+    transcriptStatus: "pending",
+    analysisStatus: "pending",
+    createdAt: daysAgo(3),
+    updatedAt: daysAgo(3),
+    show: showRef(MOCK_SHOWS[2].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000009",
+    showId: MOCK_SHOWS[2].id,
+    guid: "ai-insider-ep-14",
+    title: "EP14：大模型推理成本还能降多少",
+    description: "与芯片架构师讨论推理成本曲线与端侧模型的可能性。",
+    publishedAt: daysAgo(10),
+    durationSeconds: 5000,
+    audioUrl: "https://example.com/audio/ai-insider-14.mp3",
+    episodeUrl: "https://aiinsider.example.com/ep14",
+    coverUrl: "https://picsum.photos/seed/aiinsider/400/400",
+    guests: [],
+    processingStatus: "pending",
+    transcriptStatus: "pending",
+    analysisStatus: "pending",
+    createdAt: daysAgo(10),
+    updatedAt: daysAgo(10),
+    show: showRef(MOCK_SHOWS[2].id),
+    isFavorited: false,
+    tags: [],
+  },
+  {
+    id: "20000000-0000-0000-0000-000000000010",
+    showId: MOCK_SHOWS[2].id,
+    guid: "ai-insider-ep-13",
+    title: "EP13：AI 教育产品的家长会买账吗",
+    description: "探讨 AI 陪伴式教育产品的市场接受度与家长决策心理。",
+    publishedAt: daysAgo(18),
+    durationSeconds: 4100,
+    audioUrl: "https://example.com/audio/ai-insider-13.mp3",
+    episodeUrl: "https://aiinsider.example.com/ep13",
+    coverUrl: "https://picsum.photos/seed/aiinsider/400/400",
+    guests: ["周敏"],
+    processingStatus: "pending",
+    transcriptStatus: "pending",
+    analysisStatus: "pending",
+    createdAt: daysAgo(18),
+    updatedAt: daysAgo(18),
+    show: showRef(MOCK_SHOWS[2].id),
+    isFavorited: false,
+    tags: [],
+  },
+];
+
+export const MOCK_TRANSCRIPTS: Record<string, EpisodeTranscript> = {
+  "20000000-0000-0000-0000-000000000001": {
+    id: "30000000-0000-0000-0000-000000000001",
+    episodeId: "20000000-0000-0000-0000-000000000001",
+    fullText:
+      "张伟：欢迎收听美股价值线，我是张伟。今天我们请到半导体行业分析师陈明，一起聊聊英伟达最新一季度财报。陈明，先帮大家整体过一下这次财报的核心数字。\n\n" +
+      "陈明：好的。这一季度英伟达总营收是 260 亿美元，同比增长 122%，其中数据中心业务贡献了 184 亿美元，占比接近七成。毛利率维持在 75% 左右，比市场预期略高。\n\n" +
+      "张伟：这么高的增速还能持续吗？大家最关心的其实是护城河问题，也就是英伟达的优势到底能维持多久。\n\n" +
+      "陈明：我觉得核心护城河有两块：一是 CUDA 生态,这是十几年积累下来的软件壁垒，竞争对手很难在短期复制；二是 NVLink 互联技术带来的集群性能优势。但是我也要提醒，AMD 的 MI300 系列已经拿到了一些大客户订单，微软、Meta 都在采购，所以竞争在加剧，不是说完全没有威胁。\n\n" +
+      "张伟：客户集中度方面有没有风险？我记得财报里提到前几大客户占比很高。\n\n" +
+      "陈明：对，这也是我认为最值得关注的风险点。英伟达前四大客户贡献了大约 40% 的营收，如果其中任何一家大幅削减资本开支，对短期业绩的冲击会非常明显。另外出口管制政策的变化也是一个不确定因素，尤其是对中国市场的销售。\n\n" +
+      "张伟：那从估值角度看，现在的价格贵不贵？\n\n" +
+      "陈明：目前动态市盈率大概在 35 倍左右，相比于过去两年的历史区间并不算离谱，但前提是市场要相信这个增速能维持。我个人的结论是，短期内基本面依然强劲，但估值已经计入了比较乐观的预期，值得进一步研究的是下一代 Blackwell 芯片的量产节奏和良率情况。\n\n" +
+      "张伟：好，非常感谢陈明的分享，我们下期节目再见。",
+    language: "zh",
+    provider: "openai",
+    createdAt: daysAgo(1.95),
+    updatedAt: daysAgo(1.95),
+    segments: [
+      { id: "s1", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 0, startSeconds: 0, endSeconds: 18, text: "张伟：欢迎收听美股价值线，我是张伟。今天我们请到半导体行业分析师陈明，一起聊聊英伟达最新一季度财报。陈明，先帮大家整体过一下这次财报的核心数字。" },
+      { id: "s2", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 1, startSeconds: 18, endSeconds: 52, text: "陈明：好的。这一季度英伟达总营收是 260 亿美元，同比增长 122%，其中数据中心业务贡献了 184 亿美元，占比接近七成。毛利率维持在 75% 左右，比市场预期略高。" },
+      { id: "s3", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 2, startSeconds: 52, endSeconds: 70, text: "张伟：这么高的增速还能持续吗？大家最关心的其实是护城河问题，也就是英伟达的优势到底能维持多久。" },
+      { id: "s4", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 3, startSeconds: 70, endSeconds: 128, text: "陈明：我觉得核心护城河有两块：一是 CUDA 生态,这是十几年积累下来的软件壁垒，竞争对手很难在短期复制；二是 NVLink 互联技术带来的集群性能优势。但是我也要提醒，AMD 的 MI300 系列已经拿到了一些大客户订单，微软、Meta 都在采购，所以竞争在加剧，不是说完全没有威胁。" },
+      { id: "s5", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 4, startSeconds: 128, endSeconds: 146, text: "张伟：客户集中度方面有没有风险？我记得财报里提到前几大客户占比很高。" },
+      { id: "s6", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 5, startSeconds: 146, endSeconds: 200, text: "陈明：对，这也是我认为最值得关注的风险点。英伟达前四大客户贡献了大约 40% 的营收，如果其中任何一家大幅削减资本开支，对短期业绩的冲击会非常明显。另外出口管制政策的变化也是一个不确定因素，尤其是对中国市场的销售。" },
+      { id: "s7", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 6, startSeconds: 200, endSeconds: 216, text: "张伟：那从估值角度看，现在的价格贵不贵？" },
+      { id: "s8", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 7, startSeconds: 216, endSeconds: 268, text: "陈明：目前动态市盈率大概在 35 倍左右，相比于过去两年的历史区间并不算离谱，但前提是市场要相信这个增速能维持。我个人的结论是，短期内基本面依然强劲，但估值已经计入了比较乐观的预期，值得进一步研究的是下一代 Blackwell 芯片的量产节奏和良率情况。" },
+      { id: "s9", transcriptId: "30000000-0000-0000-0000-000000000001", segmentIndex: 8, startSeconds: 268, endSeconds: 280, text: "张伟：好，非常感谢陈明的分享，我们下期节目再见。" },
+    ],
+  },
+  "20000000-0000-0000-0000-000000000005": {
+    id: "30000000-0000-0000-0000-000000000002",
+    episodeId: "20000000-0000-0000-0000-000000000005",
+    fullText:
+      "陈晓：欢迎回到链上前沿，我是陈晓，今天和林悦一起请到矿业公司创始人赵磊，聊聊比特币减半之后矿工的生存状况。\n\n" +
+      "林悦：赵磊你好，减半之后单个区块的奖励从 6.25 枚降到 3.125 枚，对你们矿场的现金流影响有多大？\n\n" +
+      "赵磊：影响非常直接，理论上收入直接腰斩。但实际情况要复杂一些，因为减半前后往往伴随着算力的重新洗牌，效率低的矿机会被淘汰，留下来的矿场议价能力反而会提升。我们内部测算，如果比特币价格能维持在 6 万美元以上，用最新一代矿机的矿场还是有利润空间的，但老旧矿机基本上就要关机了。\n\n" +
+      "陈晓：所以你的意思是，减半会加速行业洗牌，而不是让所有矿工一起承受损失。\n\n" +
+      "赵磊：对，这也是为什么我们看到不少上市矿企在减半前就已经在融资囤积现金，准备去低价收购中小矿场的算力资产。另外一个趋势是，越来越多矿场开始探索用富余电力做 AI 算力租赁，来对冲比特币价格波动的风险。\n\n" +
+      "林悦：矿工囤币的行为会不会加剧？\n\n" +
+      "赵磊：会。现金流压力小一些的大矿场，减半之后反而更倾向于囤币而不是马上抛售，这跟 2020 年那轮减半的情况类似。不过这只是我们的观察，具体的链上抛压数据还需要持续跟踪，这一点我没有办法给出确定结论。\n\n" +
+      "陈晓：好，非常感谢赵磊，我们下期节目见。",
+    language: "zh",
+    provider: "openai",
+    createdAt: daysAgo(0.95),
+    updatedAt: daysAgo(0.95),
+    segments: [
+      { id: "s1", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 0, startSeconds: 0, endSeconds: 20, text: "陈晓：欢迎回到链上前沿，我是陈晓，今天和林悦一起请到矿业公司创始人赵磊，聊聊比特币减半之后矿工的生存状况。" },
+      { id: "s2", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 1, startSeconds: 20, endSeconds: 44, text: "林悦：赵磊你好，减半之后单个区块的奖励从 6.25 枚降到 3.125 枚，对你们矿场的现金流影响有多大？" },
+      { id: "s3", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 2, startSeconds: 44, endSeconds: 108, text: "赵磊：影响非常直接，理论上收入直接腰斩。但实际情况要复杂一些，因为减半前后往往伴随着算力的重新洗牌，效率低的矿机会被淘汰，留下来的矿场议价能力反而会提升。我们内部测算，如果比特币价格能维持在 6 万美元以上，用最新一代矿机的矿场还是有利润空间的，但老旧矿机基本上就要关机了。" },
+      { id: "s4", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 3, startSeconds: 108, endSeconds: 128, text: "陈晓：所以你的意思是，减半会加速行业洗牌，而不是让所有矿工一起承受损失。" },
+      { id: "s5", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 4, startSeconds: 128, endSeconds: 180, text: "赵磊：对，这也是为什么我们看到不少上市矿企在减半前就已经在融资囤积现金，准备去低价收购中小矿场的算力资产。另外一个趋势是，越来越多矿场开始探索用富余电力做 AI 算力租赁，来对冲比特币价格波动的风险。" },
+      { id: "s6", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 5, startSeconds: 180, endSeconds: 196, text: "林悦：矿工囤币的行为会不会加剧？" },
+      { id: "s7", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 6, startSeconds: 196, endSeconds: 248, text: "赵磊：会。现金流压力小一些的大矿场，减半之后反而更倾向于囤币而不是马上抛售，这跟 2020 年那轮减半的情况类似。不过这只是我们的观察，具体的链上抛压数据还需要持续跟踪，这一点我没有办法给出确定结论。" },
+      { id: "s8", transcriptId: "30000000-0000-0000-0000-000000000002", segmentIndex: 7, startSeconds: 248, endSeconds: 260, text: "陈晓：好，非常感谢赵磊，我们下期节目见。" },
+    ],
+  },
+};
+
+export const MOCK_ANALYSES: Record<string, EpisodeAnalysisRecord> = {
+  "20000000-0000-0000-0000-000000000001": {
+    id: "40000000-0000-0000-0000-000000000001",
+    episodeId: "20000000-0000-0000-0000-000000000001",
+    model: "claude-sonnet-4-5",
+    oneLiner: "英伟达数据中心业务维持强劲增长，CUDA 生态与 NVLink 是核心护城河，但客户集中度与竞争加剧是主要风险。",
+    topicMap: {
+      centralTopic: "英伟达财报深度拆解",
+      branches: [
+        {
+          title: "财报核心数据",
+          summary: "本季度营收与盈利能力概览",
+          points: [
+            { text: "总营收 260 亿美元，同比增长 122%", timestampSeconds: 18 },
+            { text: "数据中心业务贡献约 184 亿美元，占总营收近七成", timestampSeconds: 18 },
+            { text: "毛利率维持在约 75%，高于市场预期", timestampSeconds: 18 },
+          ],
+        },
+        {
+          title: "护城河与竞争格局",
+          summary: "CUDA/NVLink 优势 vs AMD 追赶",
+          points: [
+            { text: "核心护城河：CUDA 软件生态 + NVLink 互联技术带来的集群性能优势", timestampSeconds: 70 },
+            { text: "AMD MI300 系列已获微软、Meta 等大客户采购，竞争在加剧", timestampSeconds: 70 },
+            { text: "前四大客户贡献约 40% 营收，任一大客户削减开支会明显冲击业绩", timestampSeconds: 146 },
+            { text: "出口管制政策变化可能影响中国市场销售", timestampSeconds: 146 },
+          ],
+        },
+        {
+          title: "估值与后续关注点",
+          summary: "当前估值是否透支了乐观预期",
+          points: [
+            { text: "动态市盈率约 35 倍，处于历史区间内但已计入乐观预期", timestampSeconds: 216 },
+            { text: "下一代 Blackwell 芯片的量产节奏和良率是关键跟踪变量", timestampSeconds: 216 },
+          ],
+        },
+      ],
+    },
+    summary:
+      "本期节目分析师陈明拆解英伟达最新季度财报：总营收 260 亿美元，同比增长 122%，数据中心业务贡献约七成营收，毛利率约 75%。" +
+      "护城河来自 CUDA 软件生态与 NVLink 互联技术，但 AMD MI300 系列已获得微软、Meta 等大客户订单，竞争在加剧。" +
+      "风险点包括客户集中度高（前四大客户占营收约 40%）和出口管制政策的不确定性。当前动态市盈率约 35 倍，处于历史区间内但已计入乐观预期。" +
+      "下一代 Blackwell 芯片的量产节奏和良率是后续需要跟踪的关键变量。",
+    keyPoints: [
+      "本季度营收 260 亿美元，同比增长 122%",
+      "数据中心业务贡献约 184 亿美元，占总营收近七成",
+      "毛利率维持在约 75%，高于市场预期",
+      "核心护城河：CUDA 软件生态 + NVLink 互联技术",
+      "AMD MI300 系列已获微软、Meta 等大客户采购，竞争加剧",
+      "前四大客户贡献约 40% 营收，客户集中度是主要风险",
+      "出口管制政策变化可能影响中国市场销售",
+      "当前动态市盈率约 35 倍，处于历史区间但计入乐观预期",
+    ],
+    keyData: [
+      "总营收 260 亿美元，同比增长 122%",
+      "数据中心业务营收 184 亿美元",
+      "毛利率约 75%",
+      "前四大客户占营收约 40%",
+      "动态市盈率约 35 倍",
+    ],
+    guestConclusions: [
+      "短期内基本面依然强劲，但估值已计入比较乐观的预期",
+      "下一代 Blackwell 芯片的量产节奏和良率值得进一步研究",
+    ],
+    people: ["张伟", "陈明"],
+    entities: {
+      companies: ["英伟达", "AMD", "微软", "Meta"],
+      products: ["CUDA", "NVLink", "MI300", "Blackwell"],
+      assets: ["NVDA"],
+    },
+    tags: ["英伟达", "半导体", "财报", "数据中心", "美股"],
+    keyQuotes: [
+      { quote: "核心护城河有两块：一是 CUDA 生态，二是 NVLink 互联技术带来的集群性能优势。", timestampSeconds: 70, speaker: "陈明" },
+      { quote: "英伟达前四大客户贡献了大约 40% 的营收，如果其中任何一家大幅削减资本开支，对短期业绩的冲击会非常明显。", timestampSeconds: 146, speaker: "陈明" },
+      { quote: "短期内基本面依然强劲，但估值已经计入了比较乐观的预期，值得进一步研究的是下一代 Blackwell 芯片的量产节奏和良率情况。", timestampSeconds: 216, speaker: "陈明" },
+    ],
+    openQuestions: [
+      "Blackwell 芯片量产节奏与良率能否达到市场预期？",
+      "AMD MI300 系列的市场份额会侵蚀多少英伟达的数据中心业务？",
+      "出口管制政策若进一步收紧，对营收的具体影响幅度是多少？",
+    ],
+    createdAt: daysAgo(1.9),
+    updatedAt: daysAgo(1.9),
+  },
+  "20000000-0000-0000-0000-000000000005": {
+    id: "40000000-0000-0000-0000-000000000002",
+    episodeId: "20000000-0000-0000-0000-000000000005",
+    model: "claude-sonnet-4-5",
+    oneLiner: "比特币减半使区块奖励腰斩，行业加速洗牌，高效矿场议价能力提升，部分矿企开始布局 AI 算力租赁对冲风险。",
+    topicMap: {
+      centralTopic: "比特币减半后的矿工经济学",
+      branches: [
+        {
+          title: "减半机制与经济影响",
+          summary: "奖励腰斩后的盈亏平衡逻辑",
+          points: [
+            { text: "区块奖励从 6.25 枚降至 3.125 枚，理论收入直接腰斩", timestampSeconds: 20 },
+            { text: "减半会加速行业洗牌，效率低的矿机被淘汰，而非让所有矿工平均承受损失", timestampSeconds: 44 },
+            { text: "比特币价格维持 6 万美元以上时，新一代矿机仍有利润空间，老旧矿机将被迫关机", timestampSeconds: 44 },
+          ],
+        },
+        {
+          title: "矿企应对策略",
+          summary: "融资囤现金 + 算力资产收购 + AI 算力租赁",
+          points: [
+            { text: "部分上市矿企提前融资囤积现金，准备低价收购中小矿场算力资产", timestampSeconds: 128 },
+            { text: "矿场开始探索用富余电力做 AI 算力租赁，对冲比特币价格波动风险", timestampSeconds: 128 },
+          ],
+        },
+        {
+          title: "囤币行为与链上数据",
+          summary: "大矿场倾向囤币，但抛压数据仍需观察",
+          points: [
+            { text: "现金流压力小的大矿场，减半后更倾向于囤币而不是马上抛售", timestampSeconds: 196 },
+            { text: "具体的链上抛压数据仍需持续跟踪，嘉宾未给出确定结论", timestampSeconds: 196 },
+          ],
+        },
+      ],
+    },
+    summary:
+      "本期节目矿业公司创始人赵磊分析比特币减半对矿工经济学的影响：区块奖励从 6.25 枚降至 3.125 枚，理论收入腰斩，" +
+      "但效率低的矿机会被淘汰，留存矿场议价能力提升。测算显示比特币价格维持 6 万美元以上时，新一代矿机仍有利润空间，老旧矿机将被迫关机。" +
+      "不少上市矿企提前融资囤积现金，准备低价收购中小矿场算力资产；同时出现矿场用富余电力做 AI 算力租赁以对冲价格波动的新趋势。" +
+      "嘉宾认为大矿场减半后更倾向于囤币而非抛售，但明确表示链上抛压的具体数据仍需持续跟踪，不能给出确定结论。",
+    keyPoints: [
+      "区块奖励从 6.25 枚降至 3.125 枚，理论收入直接腰斩",
+      "减半加速行业洗牌，效率低的矿机被淘汰",
+      "比特币价格维持 6 万美元以上时，新一代矿机仍有利润空间",
+      "部分上市矿企提前融资囤积现金，准备收购中小矿场算力资产",
+      "矿场开始探索用富余电力做 AI 算力租赁，对冲价格波动风险",
+      "大矿场减半后更倾向于囤币而非抛售",
+    ],
+    keyData: [
+      "区块奖励从 6.25 BTC 降至 3.125 BTC",
+      "盈亏平衡参考价格：约 6 万美元",
+    ],
+    guestConclusions: [
+      "减半会加速行业洗牌，而非让所有矿工平均承受损失",
+      "大矿场囤币行为可能加剧，但链上抛压数据仍需持续跟踪，无法给出确定结论",
+    ],
+    people: ["陈晓", "林悦", "赵磊"],
+    entities: {
+      companies: [],
+      products: [],
+      assets: ["BTC"],
+    },
+    tags: ["比特币", "减半", "矿业", "算力", "加密货币"],
+    keyQuotes: [
+      { quote: "如果比特币价格能维持在 6 万美元以上，用最新一代矿机的矿场还是有利润空间的，但老旧矿机基本上就要关机了。", timestampSeconds: 44, speaker: "赵磊" },
+      { quote: "现金流压力小一些的大矿场，减半之后反而更倾向于囤币而不是马上抛售。", timestampSeconds: 196, speaker: "赵磊" },
+    ],
+    openQuestions: [
+      "链上抛压数据在减半后 3-6 个月会如何变化？",
+      "矿场转型 AI 算力租赁的实际收入占比能达到多少？",
+    ],
+    createdAt: daysAgo(0.9),
+    updatedAt: daysAgo(0.9),
+  },
+};
+
+export const MOCK_COLLECTIONS: Collection[] = [
+  {
+    id: "50000000-0000-0000-0000-000000000001",
+    userId: "00000000-0000-0000-0000-000000000001",
+    name: "BTC 研究",
+    description: "比特币宏观叙事、矿业与链上数据相关节目",
+    createdAt: daysAgo(30),
+    updatedAt: daysAgo(1),
+    itemCount: 1,
+  },
+  {
+    id: "50000000-0000-0000-0000-000000000002",
+    userId: "00000000-0000-0000-0000-000000000001",
+    name: "科技巨头财报",
+    description: "英伟达、苹果、微软等公司的财报解读合集",
+    createdAt: daysAgo(45),
+    updatedAt: daysAgo(2),
+    itemCount: 1,
+  },
+];
+
+export const MOCK_COLLECTION_ITEMS: CollectionItem[] = [
+  {
+    id: "60000000-0000-0000-0000-000000000001",
+    collectionId: "50000000-0000-0000-0000-000000000001",
+    episodeId: "20000000-0000-0000-0000-000000000005",
+    note: "减半后的矿工行为值得三个月后回顾验证。",
+    createdAt: daysAgo(1),
+  },
+  {
+    id: "60000000-0000-0000-0000-000000000002",
+    collectionId: "50000000-0000-0000-0000-000000000002",
+    episodeId: "20000000-0000-0000-0000-000000000001",
+    note: "重点关注 Blackwell 量产节奏，下季度财报对照。",
+    createdAt: daysAgo(1.5),
+  },
+];
