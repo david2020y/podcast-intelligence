@@ -8,7 +8,11 @@ export async function middleware(request: NextRequest) {
   const { mockMode } = getAppMode();
   if (mockMode) return NextResponse.next();
 
-  if (request.nextUrl.pathname.startsWith("/api/cron/") || request.nextUrl.pathname.startsWith("/api/webhooks/")) {
+  if (
+    request.nextUrl.pathname.startsWith("/api/cron/") ||
+    request.nextUrl.pathname.startsWith("/api/webhooks/") ||
+    request.nextUrl.pathname.startsWith("/api/auth/")
+  ) {
     return NextResponse.next();
   }
   if (request.nextUrl.pathname.startsWith("/_next") || request.nextUrl.pathname.startsWith("/api/mode")) {

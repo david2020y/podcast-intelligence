@@ -60,7 +60,7 @@ npm run dev
 
    这会应用 [supabase/migrations/0001_init.sql](supabase/migrations/0001_init.sql)，创建全部数据表、索引、RLS 策略、全文搜索函数与触发器。
 
-4. 在 Supabase Dashboard → Authentication 中启用 **Email OTP（Magic Link）** 登录方式（默认已启用）。
+4. 登录方式为**手机号+密码**（`/login`），不依赖任何短信服务商：注册时用手机号推导出一个占位邮箱（`p<手机号>@phone.podcast-intel.local`）通过 Supabase Admin API 直接创建已确认账号，真实手机号存在 `auth.users.user_metadata` 和 `profiles.phone`。想限制成小范围邀请制测试，设置 `SIGNUP_INVITE_CODE`（见下），注册时必须填对邀请码。
 5. 将三个变量写入 `.env.local`（参考 `.env.example`）：
 
    ```bash

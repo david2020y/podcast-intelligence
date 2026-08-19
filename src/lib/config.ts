@@ -118,3 +118,6 @@ export const ASSEMBLYAI_WEBHOOK_SECRET = process.env.ASSEMBLYAI_WEBHOOK_SECRET;
 
 export const CRON_SECRET = process.env.CRON_SECRET;
 export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+// Optional gate on /api/auth/signup for small-scale invite-only testing. Unset = open signup.
+export const SIGNUP_INVITE_CODE = process.env.SIGNUP_INVITE_CODE;

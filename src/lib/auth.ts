@@ -4,18 +4,23 @@ import { getSupabaseServer } from "@/lib/supabase/server";
 export interface CurrentUser {
   id: string;
   email: string | null;
+  phone: string | null;
 }
 
 /** Resolves the acting user for the current request: real session, or the demo user in Mock Mode. */
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const mode = getAppMode();
   if (mode.mockMode) {
-    return { id: DEMO_USER_ID, email: "demo@podcast-intelligence.local" };
+    return { id: DEMO_USER_ID, email: "demo@podcast-intelligence.local", phone: null };
   }
   const supabase = await getSupabaseServer();
   const { data } = await supabase.auth.getUser();
   if (!data.user) return null;
-  return { id: data.user.id, email: data.user.email ?? null };
+  return {
+    id: data.user.id,
+    email: data.user.email ?? null,
+    phone: (data.user.user_metadata?.phone as string | undefined) ?? null,
+  };
 }
 
 export async function requireCurrentUser(): Promise<CurrentUser> {
