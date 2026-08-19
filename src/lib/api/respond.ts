@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { AuthRequiredError } from "@/lib/auth";
+import { AuthRequiredError, AdminRequiredError } from "@/lib/auth";
 import { UnsafeUrlError } from "@/lib/rss/ssrf";
 import { ExternalFetchError } from "@/lib/rss/fetchSafe";
 import { FeedDiscoveryError } from "@/lib/rss/sync";
@@ -13,6 +13,9 @@ export function apiError(err: unknown): NextResponse {
   }
   if (err instanceof AuthRequiredError) {
     return NextResponse.json({ error: err.message }, { status: 401 });
+  }
+  if (err instanceof AdminRequiredError) {
+    return NextResponse.json({ error: err.message }, { status: 403 });
   }
   if (err instanceof UnsafeUrlError || err instanceof FeedDiscoveryError) {
     return NextResponse.json({ error: err.message }, { status: 400 });

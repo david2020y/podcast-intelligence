@@ -200,6 +200,59 @@ export async function updateShowSyncMeta(
   if (error) throw error;
 }
 
+export interface AdminShow extends PodcastShow {
+  addedByPhone: string | null;
+}
+
+/** Every show in the catalog, for the admin review queue — not filtered by subscription or
+ * marketplace status the way listMyShows / listMarketplaceShows are. */
+export async function listShowsForAdmin(): Promise<AdminShow[]> {
+  const { mockMode } = getAppMode();
+  if (mockMode) {
+    return mockStore.shows.map((s) => ({ ...s, addedByPhone: null }));
+  }
+
+  const supabase = getSupabaseAdmin();
+  const { data: shows, error } = await supabase.from("podcast_shows").select("*").order("created_at", { ascending: false });
+  if (error) throw error;
+
+  const userIds = Array.from(new Set((shows ?? []).map((s) => s.added_by_user_id).filter(Boolean))) as string[];
+  const phoneByUserId = new Map<string, string>();
+  if (userIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase.from("profiles").select("id, phone").in("id", userIds);
+    if (profilesError) throw profilesError;
+    for (const p of profiles ?? []) {
+      if (p.phone) phoneByUserId.set(p.id as string, p.phone as string);
+    }
+  }
+
+  return (shows ?? []).map((row) => ({
+    ...mapRow(row),
+    addedByPhone: row.added_by_user_id ? (phoneByUserId.get(row.added_by_user_id as string) ?? null) : null,
+  }));
+}
+
+export async function updateMarketplaceListing(
+  id: string,
+  patch: { inMarketplace?: boolean; marketplaceCategory?: string | null }
+): Promise<void> {
+  const { mockMode } = getAppMode();
+  if (mockMode) {
+    const show = findShow(id);
+    if (!show) return;
+    if (patch.inMarketplace !== undefined) show.inMarketplace = patch.inMarketplace;
+    if (patch.marketplaceCategory !== undefined) show.marketplaceCategory = patch.marketplaceCategory;
+    show.updatedAt = nowIso();
+    return;
+  }
+  const supabase = getSupabaseAdmin();
+  const update: Record<string, unknown> = {};
+  if (patch.inMarketplace !== undefined) update.in_marketplace = patch.inMarketplace;
+  if (patch.marketplaceCategory !== undefined) update.marketplace_category = patch.marketplaceCategory;
+  const { error } = await supabase.from("podcast_shows").update(update).eq("id", id);
+  if (error) throw error;
+}
+
 export async function setSubscription(userId: string, showId: string, status: SubscriptionStatus): Promise<void> {
   const { mockMode } = getAppMode();
   if (mockMode) {

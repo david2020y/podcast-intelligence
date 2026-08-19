@@ -1,4 +1,4 @@
-import { getAppMode, DEMO_USER_ID } from "@/lib/config";
+import { getAppMode, isAdminPhone, DEMO_USER_ID } from "@/lib/config";
 import { getSupabaseServer } from "@/lib/supabase/server";
 
 export interface CurrentUser {
@@ -31,9 +31,35 @@ export async function requireCurrentUser(): Promise<CurrentUser> {
   return user;
 }
 
+/** True if the current user may access /admin/* and its APIs. In Mock Mode there's no real
+ * login (the whole app already runs as a single implicit demo user), so admin access is left
+ * open there too, matching every other page's behavior in that mode. */
+export async function isCurrentUserAdmin(): Promise<boolean> {
+  const { mockMode } = getAppMode();
+  if (mockMode) return true;
+  const user = await getCurrentUser();
+  return isAdminPhone(user?.phone ?? null);
+}
+
+export async function requireAdmin(): Promise<CurrentUser> {
+  const user = await requireCurrentUser();
+  const { mockMode } = getAppMode();
+  if (!mockMode && !isAdminPhone(user.phone)) {
+    throw new AdminRequiredError();
+  }
+  return user;
+}
+
 export class AuthRequiredError extends Error {
   constructor() {
     super("需要登录后才能执行此操作");
     this.name = "AuthRequiredError";
+  }
+}
+
+export class AdminRequiredError extends Error {
+  constructor() {
+    super("没有权限访问后台管理");
+    this.name = "AdminRequiredError";
   }
 }

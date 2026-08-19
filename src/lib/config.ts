@@ -121,3 +121,16 @@ export const DEMO_USER_ID = "00000000-0000-0000-0000-000000000001";
 
 // Optional gate on /api/auth/signup for small-scale invite-only testing. Unset = open signup.
 export const SIGNUP_INVITE_CODE = process.env.SIGNUP_INVITE_CODE;
+
+// Comma-separated allowlist of admin phone numbers, e.g. "13800001111,13900002222". Kept as an
+// env var rather than a profiles.is_admin column: this app has a single operator, so there's no
+// need for a role to manage in the database — redeploying with a new env var is simpler and
+// harder to misconfigure than remembering to flip a DB flag for every new admin account.
+export function isAdminPhone(phone: string | null): boolean {
+  if (!phone) return false;
+  const admins = (process.env.ADMIN_PHONES ?? "")
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  return admins.includes(phone);
+}
