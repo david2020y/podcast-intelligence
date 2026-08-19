@@ -2,15 +2,26 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Menu, Headphones } from "lucide-react";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
 import { ModeBadge } from "@/components/layout/mode-badge";
+import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/layout/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
+// /login has its own full-screen layout and renders before a session exists, so it must not
+// be wrapped in the authenticated app's nav chrome.
+const CHROMELESS_PATHS = ["/login"];
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
+
+  if (CHROMELESS_PATHS.some((p) => pathname.startsWith(p))) {
+    return <>{children}</>;
+  }
 
   return (
     <div className="flex min-h-screen w-full">
@@ -46,6 +57,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="hidden md:block" />
           <div className="flex items-center gap-2">
             <ModeBadge />
+            <UserMenu />
             <ThemeToggle />
           </div>
         </header>
