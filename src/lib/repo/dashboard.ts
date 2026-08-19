@@ -2,7 +2,7 @@ import { getAppMode } from "@/lib/config";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { mockStore, attachEpisodeExtras } from "@/lib/mock/store";
 import type { DashboardStats } from "@/lib/types";
-import { listShows } from "@/lib/repo/shows";
+import { listMyShows } from "@/lib/repo/shows";
 import { listRecentEpisodes, countEpisodesByStatus } from "@/lib/repo/episodes";
 
 export async function getDashboardStats(userId: string): Promise<DashboardStats> {
@@ -10,7 +10,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
   const weekAgo = new Date(Date.now() - 7 * 86400_000).toISOString();
 
   if (mockMode) {
-    const shows = await listShows(userId);
+    const shows = await listMyShows(userId);
     const episodes = mockStore.episodes;
     const newThisWeek = episodes.filter((e) => e.createdAt >= weekAgo).length;
     const pendingTranscription = episodes.filter((e) => e.transcriptStatus === "pending").length;
@@ -34,7 +34,7 @@ export async function getDashboardStats(userId: string): Promise<DashboardStats>
   }
 
   const supabase = getSupabaseAdmin();
-  const shows = await listShows(userId);
+  const shows = await listMyShows(userId);
   const subscribedShowCount = shows.filter((s) => s.subscriptionStatus === "active").length;
 
   const { count: totalEpisodeCount } = await supabase

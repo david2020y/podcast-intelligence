@@ -20,6 +20,12 @@ export interface PodcastShow {
   lastSyncedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  // Who added this show, and whether an admin has published it into the shared marketplace —
+  // a user's own RSS additions stay private to them until curated in. Null addedByUserId means
+  // it predates this field (seeded/system catalog).
+  addedByUserId: string | null;
+  inMarketplace: boolean;
+  marketplaceCategory: string | null;
   // joined / derived
   subscriptionStatus?: SubscriptionStatus | null;
   episodeCount?: number;

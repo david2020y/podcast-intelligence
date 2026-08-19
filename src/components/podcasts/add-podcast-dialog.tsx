@@ -37,7 +37,15 @@ export function AddPodcastDialog({ onAdded }: { onAdded: (show: PodcastShow) => 
           ? { rssUrl }
           : tab === "episode"
             ? { episodeUrl }
-            : { manual: { ...manual, author: manual.author || undefined, description: manual.description || undefined } };
+            : {
+                manual: {
+                  title: manual.title,
+                  author: manual.author || undefined,
+                  description: manual.description || undefined,
+                  websiteUrl: manual.websiteUrl || undefined,
+                  category: manual.category || undefined,
+                },
+              };
 
       const { show } = await apiPost<{ show: PodcastShow }>("/api/podcasts", body);
       toast.success(`已添加播客《${show.title}》`);
