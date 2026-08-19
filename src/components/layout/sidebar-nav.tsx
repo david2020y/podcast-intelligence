@@ -2,12 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Rss, Search, Bookmark, Settings2 } from "lucide-react";
+import { LayoutDashboard, Rss, Store, Search, Bookmark, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/podcasts", label: "播客", icon: Rss },
+  { href: "/podcasts", label: "我的播客", icon: Rss },
+  { href: "/marketplace", label: "播客市场", icon: Store },
   { href: "/search", label: "搜索", icon: Search },
   { href: "/collections", label: "专题收藏", icon: Bookmark },
   { href: "/settings", label: "设置", icon: Settings2 },

@@ -61,7 +61,7 @@ export async function syncShow(showId: string): Promise<SyncJob> {
 
 /** Syncs every show in the catalog; individual show failures don't abort the batch. */
 export async function syncAllShows(userId: string): Promise<{ results: Array<{ showId: string; ok: boolean; error?: string }> }> {
-  const shows = await showsRepo.listShows(userId);
+  const shows = await showsRepo.listMyShows(userId);
   const results: Array<{ showId: string; ok: boolean; error?: string }> = [];
   for (const show of shows) {
     try {
@@ -94,6 +94,7 @@ export async function addPodcastFromRss(rssUrl: string, userId: string): Promise
     category: feed.category,
     language: feed.language,
     sourcePlatform: "rss",
+    addedByUserId: userId,
   });
   await showsRepo.setSubscription(userId, show.id, "active");
   await syncShow(show.id);
@@ -147,6 +148,7 @@ export async function addPodcastManual(
     coverUrl: input.coverUrl ?? null,
     rssUrl: null,
     sourcePlatform: "manual",
+    addedByUserId: userId,
   });
   await showsRepo.setSubscription(userId, show.id, "active");
   return show;

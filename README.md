@@ -73,10 +73,17 @@ npm run dev
 
 ### 数据模型要点
 
-- `podcast_shows` / `podcast_episodes` 等目录表对所有登录用户共享可读（播客内容本身是公开信息），写入仅通过服务端 `service_role` 客户端完成（RSS 同步、转录、AI 分析）。
+- `podcast_shows` / `podcast_episodes` 等目录表的写入仅通过服务端 `service_role` 客户端完成（RSS 同步、转录、AI 分析）；RLS 层面对所有登录用户可读，实际的"我的播客 / 播客市场"可见性边界在应用层（`src/lib/repo/shows.ts` 的 `listMyShows` / `listMarketplaceShows`）而非 RLS 强制——见下方「播客市场」一节。
 - `subscriptions` / `collections` / `collection_items` / `favorites` 是用户私有数据，通过 RLS 按 `user_id = auth.uid()` 隔离。
 - `podcast_episodes` 使用 `unique (show_id, guid)` 约束保证同步幂等，不会产生重复单集。
 - 全文搜索通过 `search_episodes(query, limit)` SQL 函数完成，跨 `podcast_episodes` / `podcast_shows` / `episode_analyses` / `episode_transcripts` 四张表的 `tsvector` 生成列做加权排序。
+
+### 播客市场（我的播客 vs. 播客市场）
+
+- `podcast_shows` 新增三列（[0004_marketplace.sql](supabase/migrations/0004_marketplace.sql)）：`added_by_user_id`（谁添加的）、`in_marketplace`（是否已上架市场，默认 `false`）、`marketplace_category`（市场分类，自由文本，不是枚举，方便后台随时加新分类不用改表结构）。
+- **我的播客**（`/podcasts`）= 当前用户已订阅（`subscriptions` 状态 active/paused）的播客，自己添加的 RSS/单集/手动播客只有自己能看到。
+- **播客市场**（`/marketplace`）= `in_marketplace = true` 的播客，所有登录用户可见，按 `marketplace_category` 筛选，一键"加入我的播客"。
+- 用户在「我的播客」自己添加的播客**不会自动出现在市场里**——`in_marketplace` 默认 `false`，需要管理员在后台把它标记为上架并分类。当前版本还没有后台管理界面，需要单独跟进（见下方「已知限制」）。
 
 ## AI 与转录 API 配置
 
@@ -210,3 +217,4 @@ RSS 抓取解析、SSRF 防护、Markdown 导出、全文搜索（Mock Mode 下�
 - 全文搜索目前基于 PostgreSQL `tsvector`，尚未引入向量检索（语义搜索）
 - 设置页的"自动同步开关"目前是只读状态展示（自动同步通过 Vercel Cron 在服务端配置），可以在下一阶段加入按播客粒度的同步频率配置
 - `middleware.ts` 使用的是 Next.js 16 即将废弃的中间件约定（功能不受影响，构建时会有一条 deprecation 提示，可用 `npx @next/codemod@canary middleware-to-proxy .` 迁移到新的 `proxy.ts` 约定）
+- 播客市场目前没有后台管理界面——把用户添加的播客标记为上架/下架、设置分类，暂时只能直连 Supabase 手动改 `podcast_shows` 表。后台管理是下一阶段要单独跟进的任务。

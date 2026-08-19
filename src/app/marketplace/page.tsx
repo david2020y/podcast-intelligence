@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import useSWR, { mutate } from "swr";
 import Link from "next/link";
-import { RefreshCw, Loader2, Search, Rss } from "lucide-react";
+import { Loader2, Search, Store, Check, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,56 +11,44 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/empty-state";
-import { AddPodcastDialog } from "@/components/podcasts/add-podcast-dialog";
 import { fetcher, apiPost, ApiError } from "@/lib/fetcher";
-import { formatRelativeTime } from "@/lib/format";
 import { toast } from "sonner";
 import type { PodcastShow } from "@/lib/types";
 
-export default function PodcastsPage() {
-  const { data, isLoading, error } = useSWR<{ shows: PodcastShow[] }>("/api/podcasts", fetcher);
+// Preferred display order; any other category the admin introduces later still shows up,
+// just sorted after these.
+const CATEGORY_ORDER = ["科技", "宏观经济", "投资", "加密货币"];
+
+export default function MarketplacePage() {
+  const { data, isLoading, error } = useSWR<{ shows: PodcastShow[] }>("/api/marketplace", fetcher);
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("all");
-  const [syncingAll, setSyncingAll] = useState(false);
 
   const shows = useMemo(() => data?.shows ?? [], [data]);
-  const categories = useMemo(() => Array.from(new Set(shows.map((s) => s.category).filter(Boolean))) as string[], [shows]);
+  const categories = useMemo(() => {
+    const present = Array.from(new Set(shows.map((s) => s.marketplaceCategory).filter(Boolean))) as string[];
+    return present.sort((a, b) => {
+      const ai = CATEGORY_ORDER.indexOf(a);
+      const bi = CATEGORY_ORDER.indexOf(b);
+      if (ai === -1 && bi === -1) return a.localeCompare(b);
+      if (ai === -1) return 1;
+      if (bi === -1) return -1;
+      return ai - bi;
+    });
+  }, [shows]);
 
   const filtered = shows.filter((s) => {
     const matchesQuery =
       !query || s.title.toLowerCase().includes(query.toLowerCase()) || (s.author ?? "").toLowerCase().includes(query.toLowerCase());
-    const matchesCategory = category === "all" || s.category === category;
+    const matchesCategory = category === "all" || s.marketplaceCategory === category;
     return matchesQuery && matchesCategory;
   });
 
-  async function handleSyncAll() {
-    setSyncingAll(true);
-    try {
-      const result = await apiPost<{ results: Array<{ ok: boolean }> }>("/api/sync/all");
-      const okCount = result.results.filter((r) => r.ok).length;
-      toast.success(`同步完成：${okCount}/${result.results.length} 个播客成功`);
-      mutate("/api/podcasts");
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "同步失败");
-    } finally {
-      setSyncingAll(false);
-    }
-  }
-
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">我的播客</h1>
-          <p className="mt-1 text-sm text-muted-foreground">管理你订阅的播客与 RSS 同步，其他人看不到你在这里添加的内容</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={handleSyncAll} disabled={syncingAll || shows.length === 0}>
-            {syncingAll ? <Loader2 className="size-4 animate-spin" /> : <RefreshCw className="size-4" />}
-            全部同步
-          </Button>
-          <AddPodcastDialog onAdded={() => mutate("/api/podcasts")} />
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">播客市场</h1>
+        <p className="mt-1 text-sm text-muted-foreground">精选整理的播客，一键加入「我的播客」</p>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row">
@@ -95,41 +83,38 @@ export default function PodcastsPage() {
 
       {!isLoading && filtered.length === 0 && (
         <EmptyState
-          icon={Rss}
-          title={shows.length === 0 ? "还没有订阅任何播客" : "没有匹配的播客"}
-          description={
-            shows.length === 0
-              ? "点击右上角「添加播客」粘贴 RSS 地址，或去「播客市场」逛逛已经整理好的节目"
-              : "试试调整搜索或分类筛选"
-          }
+          icon={Store}
+          title={shows.length === 0 ? "播客市场暂时还是空的" : "没有匹配的播客"}
+          description={shows.length === 0 ? "整理好的播客上架后会显示在这里" : "试试调整搜索或分类筛选"}
         />
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filtered.map((show) => (
-          <PodcastCard key={show.id} show={show} />
+          <MarketplaceCard key={show.id} show={show} />
         ))}
       </div>
     </div>
   );
 }
 
-function PodcastCard({ show }: { show: PodcastShow }) {
-  const [syncing, setSyncing] = useState(false);
+function MarketplaceCard({ show }: { show: PodcastShow }) {
+  const [loading, setLoading] = useState(false);
+  const subscribed = show.subscriptionStatus === "active" || show.subscriptionStatus === "paused";
 
-  async function handleSync(e: React.MouseEvent) {
+  async function handleAdd(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    setSyncing(true);
+    setLoading(true);
     try {
-      const { job } = await apiPost<{ job: { addedCount: number; updatedCount: number } }>(`/api/podcasts/${show.id}/sync`);
-      toast.success(`同步完成：新增 ${job.addedCount} 集，更新 ${job.updatedCount} 集`);
+      await apiPost(`/api/podcasts/${show.id}/subscription`, { status: "active" });
+      toast.success(`已加入《${show.title}》到我的播客`);
+      mutate("/api/marketplace");
       mutate("/api/podcasts");
-      mutate(`/api/podcasts/${show.id}`);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "同步失败");
+      toast.error(err instanceof ApiError ? err.message : "添加失败，请重试");
     } finally {
-      setSyncing(false);
+      setLoading(false);
     }
   }
 
@@ -142,19 +127,23 @@ function PodcastCard({ show }: { show: PodcastShow }) {
             <p className="truncate text-sm font-medium">{show.title}</p>
             <p className="truncate text-xs text-muted-foreground">{show.author ?? "未知作者"}</p>
             <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {show.category && (
+              {show.marketplaceCategory && (
                 <Badge variant="secondary" className="text-[11px] font-normal">
-                  {show.category}
+                  {show.marketplaceCategory}
                 </Badge>
               )}
               <span className="text-[11px] text-muted-foreground">{show.episodeCount ?? 0} 集</span>
             </div>
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-muted-foreground">
-                {show.lastSyncedAt ? `同步于 ${formatRelativeTime(show.lastSyncedAt)}` : "尚未同步"}
-              </span>
-              <Button size="icon" variant="ghost" className="size-6" onClick={handleSync} disabled={syncing || !show.rssUrl}>
-                {syncing ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            <div className="flex items-center justify-end pt-1">
+              <Button size="sm" variant={subscribed ? "secondary" : "default"} className="h-7 px-2 text-xs" onClick={handleAdd} disabled={loading || subscribed}>
+                {loading ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : subscribed ? (
+                  <Check className="size-3.5" />
+                ) : (
+                  <Plus className="size-3.5" />
+                )}
+                {subscribed ? "已添加" : "加入我的播客"}
               </Button>
             </div>
           </div>

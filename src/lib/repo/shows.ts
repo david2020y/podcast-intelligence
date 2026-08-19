@@ -13,6 +13,7 @@ export interface CreateShowInput {
   category?: string | null;
   language?: string | null;
   sourcePlatform: SourcePlatform;
+  addedByUserId?: string | null;
 }
 
 function mapRow(row: Record<string, unknown>): PodcastShow {
@@ -30,10 +31,15 @@ function mapRow(row: Record<string, unknown>): PodcastShow {
     lastSyncedAt: (row.last_synced_at as string) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
+    addedByUserId: (row.added_by_user_id as string) ?? null,
+    inMarketplace: (row.in_marketplace as boolean) ?? false,
+    marketplaceCategory: (row.marketplace_category as string) ?? null,
   };
 }
 
-export async function listShows(userId: string): Promise<PodcastShow[]> {
+/** Raw catalog fetch decorated with the current user's subscription status. Internal — callers
+ * should use listMyShows / listMarketplaceShows, which apply the actual visibility rules. */
+async function listShows(userId: string): Promise<PodcastShow[]> {
   const { mockMode } = getAppMode();
   if (mockMode) {
     return mockStore.shows.map((s) => ({
@@ -63,6 +69,18 @@ export async function listShows(userId: string): Promise<PodcastShow[]> {
     subscriptionStatus: subMap.get(row.id) ?? null,
     episodeCount: countMap.get(row.id) ?? 0,
   }));
+}
+
+/** "我的播客" — shows the user has subscribed to (whether added by them or from the marketplace). */
+export async function listMyShows(userId: string): Promise<PodcastShow[]> {
+  const shows = await listShows(userId);
+  return shows.filter((s) => s.subscriptionStatus === "active" || s.subscriptionStatus === "paused");
+}
+
+/** "播客市场" — the admin-curated, categorized shows visible to every user. */
+export async function listMarketplaceShows(userId: string): Promise<PodcastShow[]> {
+  const shows = await listShows(userId);
+  return shows.filter((s) => s.inMarketplace);
 }
 
 export async function getShowById(id: string, userId?: string): Promise<PodcastShow | null> {
@@ -126,6 +144,9 @@ export async function createShow(input: CreateShowInput): Promise<PodcastShow> {
       createdAt: nowIso(),
       updatedAt: nowIso(),
       episodeCount: 0,
+      addedByUserId: input.addedByUserId ?? null,
+      inMarketplace: false,
+      marketplaceCategory: null,
     };
     mockStore.shows.unshift(show);
     return show;
@@ -144,6 +165,7 @@ export async function createShow(input: CreateShowInput): Promise<PodcastShow> {
       category: input.category ?? null,
       language: input.language ?? null,
       source_platform: input.sourcePlatform,
+      added_by_user_id: input.addedByUserId ?? null,
     })
     .select("*")
     .single();
