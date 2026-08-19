@@ -118,7 +118,10 @@ function StatCard({
         {loading ? (
           <Skeleton className="mt-2 h-7 w-12" />
         ) : (
-          <p className="mt-1 text-2xl font-semibold tabular-nums">{value ?? 0}</p>
+          <>
+            <p className="mt-1 text-2xl font-semibold tabular-nums">{value ?? 0}</p>
+            <div className="stat-meter mt-2" />
+          </>
         )}
       </CardContent>
     </Card>

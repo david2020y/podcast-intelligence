@@ -137,7 +137,10 @@ function PodcastCard({ show }: { show: PodcastShow }) {
     <Link href={`/podcasts/${show.id}`}>
       <Card className="h-full transition-colors hover:border-foreground/20">
         <CardContent className="flex gap-3">
-          <img src={show.coverUrl ?? "/podcast-placeholder.svg"} alt="" className="size-16 shrink-0 rounded-lg object-cover" />
+          <div className="relative size-16 shrink-0 overflow-hidden rounded-lg">
+            <img src={show.coverUrl ?? "/podcast-placeholder.svg"} alt="" className="size-full object-cover" />
+            <div className="waveform-accent" />
+          </div>
           <div className="min-w-0 flex-1 space-y-1">
             <p className="truncate text-sm font-medium">{show.title}</p>
             <p className="truncate text-xs text-muted-foreground">{show.author ?? "未知作者"}</p>
