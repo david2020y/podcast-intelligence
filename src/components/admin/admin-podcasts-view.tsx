@@ -10,6 +10,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
+import { AdminNav } from "@/components/admin/admin-nav";
 import { fetcher, apiPatch, ApiError } from "@/lib/fetcher";
 import { toast } from "sonner";
 import type { PodcastShow } from "@/lib/types";
@@ -44,6 +45,8 @@ export function AdminPodcastsView() {
           <p className="mt-1 text-sm text-muted-foreground">审核用户添加的播客，管理播客市场的上架状态与分类</p>
         </div>
       </div>
+
+      <AdminNav />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Tabs value={tab} onValueChange={(v) => setTab(v as "pending" | "all")}>

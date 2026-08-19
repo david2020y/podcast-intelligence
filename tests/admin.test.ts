@@ -1,6 +1,7 @@
 import { describe, expect, it, afterEach } from "vitest";
 import { isAdminPhone } from "@/lib/config";
 import { createShow, listShowsForAdmin, updateMarketplaceListing } from "@/lib/repo/shows";
+import { listUsersForAdmin } from "@/lib/repo/users";
 import { UpdateMarketplaceListingSchema } from "@/lib/validation/admin";
 
 describe("isAdminPhone", () => {
@@ -55,6 +56,14 @@ describe("admin show listing + listing updates (mock repo)", () => {
     const all = await listShowsForAdmin();
     const found = all.find((s) => s.id === show.id);
     expect(found!.marketplaceCategory).toBeNull();
+  });
+});
+
+describe("listUsersForAdmin (mock repo)", () => {
+  it("returns the implicit demo user in Mock Mode", async () => {
+    const users = await listUsersForAdmin();
+    expect(users).toHaveLength(1);
+    expect(users[0].id).toBeTruthy();
   });
 });
 
