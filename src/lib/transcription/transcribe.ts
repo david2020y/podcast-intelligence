@@ -10,6 +10,7 @@ import {
 } from "@/lib/config";
 import { fetchSafe } from "@/lib/rss/fetchSafe";
 import { submitAssemblyAiJob } from "@/lib/transcription/assemblyai";
+import { extractYoutubeVideoId, fetchYoutubeCaptions } from "@/lib/youtube/captions";
 import * as episodesRepo from "@/lib/repo/episodes";
 import * as transcriptsRepo from "@/lib/repo/transcripts";
 import * as jobsRepo from "@/lib/repo/jobs";
@@ -127,6 +128,29 @@ export async function transcribeEpisode(episodeId: string): Promise<TranscribeOu
   const job = await jobsRepo.createProcessingJob(episodeId, "transcribe");
 
   try {
+    if (episode.show?.sourcePlatform === "youtube") {
+      const videoId = episode.episodeUrl ? extractYoutubeVideoId(episode.episodeUrl) : null;
+      if (!videoId) throw new TranscriptionError("无法从该单集链接中识别 YouTube 视频 ID");
+
+      let captions: { fullText: string; segments: SegmentInput[]; language: string | null };
+      try {
+        captions = await fetchYoutubeCaptions(videoId);
+      } catch (err) {
+        throw new TranscriptionError(err instanceof Error ? err.message : "获取 YouTube 字幕失败");
+      }
+
+      const transcript = await transcriptsRepo.saveTranscript(
+        episodeId,
+        captions.fullText,
+        captions.language,
+        "youtube-captions",
+        captions.segments
+      );
+      await episodesRepo.updateEpisodeStatus(episodeId, { transcriptStatus: "completed" });
+      await jobsRepo.finishProcessingJob(job.id, { status: "completed" });
+      return { status: "completed", transcript };
+    }
+
     const { hasTranscriptionKey } = getAppMode();
     const provider = resolveTranscriptionProvider();
 

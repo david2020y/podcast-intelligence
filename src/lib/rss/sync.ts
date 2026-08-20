@@ -1,9 +1,10 @@
 import { fetchAndParseFeed } from "@/lib/rss/parser";
 import { fetchSafe } from "@/lib/rss/fetchSafe";
+import { isYoutubeUrl, resolveYoutubeChannelFeedUrl } from "@/lib/youtube/channel";
 import * as showsRepo from "@/lib/repo/shows";
 import * as episodesRepo from "@/lib/repo/episodes";
 import * as jobsRepo from "@/lib/repo/jobs";
-import type { PodcastShow, SyncJob } from "@/lib/types";
+import type { PodcastShow, SourcePlatform, SyncJob } from "@/lib/types";
 
 export class FeedDiscoveryError extends Error {}
 
@@ -152,4 +153,63 @@ export async function addPodcastManual(
   });
   await showsRepo.setSubscription(userId, show.id, "active");
   return show;
+}
+
+export interface BulkImportResult {
+  url: string;
+  ok: boolean;
+  title?: string;
+  error?: string;
+}
+
+/**
+ * Admin-only catalog import: each line is either a plain RSS/Atom feed URL or a YouTube
+ * channel/video URL (resolved to that channel's official videos.xml feed). Unlike
+ * addPodcastFromRss, this doesn't subscribe the admin to anything — it's curating the shared
+ * catalog, publishing straight into the marketplace under one shared category rather than
+ * landing in the per-user "my podcasts" list. One bad URL doesn't abort the rest of the batch.
+ */
+export async function bulkImportShowsForAdmin(
+  urls: string[],
+  category: string | null,
+  adminUserId: string
+): Promise<BulkImportResult[]> {
+  const results: BulkImportResult[] = [];
+  for (const raw of urls) {
+    const url = raw.trim();
+    if (!url) continue;
+    try {
+      const feedUrl = isYoutubeUrl(url) ? await resolveYoutubeChannelFeedUrl(url) : url;
+      const sourcePlatform: SourcePlatform = isYoutubeUrl(feedUrl) ? "youtube" : "rss";
+
+      let show = await showsRepo.getShowByRssUrl(feedUrl);
+      if (!show) {
+        const feed = await fetchAndParseFeed(feedUrl);
+        show = await showsRepo.createShow({
+          title: feed.title,
+          description: feed.description,
+          coverUrl: feed.coverUrl,
+          author: feed.author,
+          rssUrl: feedUrl,
+          websiteUrl: feed.websiteUrl,
+          category: feed.category,
+          language: feed.language,
+          sourcePlatform,
+          addedByUserId: adminUserId,
+        });
+      }
+      // Only touch the category when this batch specified one — an admin re-running bulk
+      // import without a category (e.g. just to refresh/republish) shouldn't blank out a
+      // category an already-cataloged show already has.
+      await showsRepo.updateMarketplaceListing(show.id, {
+        inMarketplace: true,
+        ...(category !== null ? { marketplaceCategory: category } : {}),
+      });
+      await syncShow(show.id);
+      results.push({ url, ok: true, title: show.title });
+    } catch (err) {
+      results.push({ url, ok: false, error: err instanceof Error ? err.message : "导入失败" });
+    }
+  }
+  return results;
 }

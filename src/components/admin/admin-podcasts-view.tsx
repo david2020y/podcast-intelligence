@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 import { AdminNav } from "@/components/admin/admin-nav";
+import { BulkImportDialog } from "@/components/admin/bulk-import-dialog";
 import { fetcher, apiPatch, ApiError } from "@/lib/fetcher";
 import { toast } from "sonner";
 import type { PodcastShow } from "@/lib/types";
@@ -38,12 +39,15 @@ export function AdminPodcastsView() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 p-4 md:p-8">
-      <div className="flex items-center gap-2">
-        <ShieldCheck className="size-5 text-muted-foreground" />
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">播客后台管理</h1>
-          <p className="mt-1 text-sm text-muted-foreground">审核用户添加的播客，管理播客市场的上架状态与分类</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <ShieldCheck className="size-5 text-muted-foreground" />
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">播客后台管理</h1>
+            <p className="mt-1 text-sm text-muted-foreground">审核用户添加的播客，管理播客市场的上架状态与分类</p>
+          </div>
         </div>
+        <BulkImportDialog onImported={() => mutate(ADMIN_PODCASTS_KEY)} />
       </div>
 
       <AdminNav />
