@@ -15,7 +15,8 @@ const TOPIC_MAP_GUIDANCE = `关于 topicMap（内容框架图，会渲染成脑�
 - 这是本次分析里最重要的字段，目标是让用户不看转录、只看这张图就能重建整期节目的讨论脉络，所以必须尽量完整，不能只挑几个"亮点"就草草了事。
 - 按节目实际讨论的先后顺序拆分话题分支（branches），话题切换到哪里就应该有一个新分支，宁可分支多一些、细一些，也不要把差异很大的内容硬塞进同一个分支。
 - 每个分支下的 points 要保留具体的论据、数字、例子，而不是把一段讨论压缩成一句空泛的结论——keyPoints 字段已经是"精选亮点"了，topicMap 的 points 定位不同，是"这个分支里都聊了什么"，应该更详细、更接近转录的实际信息量。
-- 如果某段讨论跑题、闲聊或者反复横跳，也如实按实际顺序体现，不要为了让结构好看而重新编排节目没有的逻辑顺序。`;
+- 如果某段讨论跑题、闲聊或者反复横跳，也如实按实际顺序体现，不要为了让结构好看而重新编排节目没有的逻辑顺序。
+- 必须覆盖到节目结尾：最后一个分支的时间点应当接近下面给出的节目总时长。分支数量有上限，所以要把它们均匀分配到整条时间轴上——如果为了细讲开头部分把配额用完，导致后半程整段缺失，这次分析就是失败的。长节目请适当放粗每个分支的粒度，优先保证首尾完整。`;
 
 /** For the cloud providers, which are driven by a forced tool call. */
 export const ANALYSIS_SYSTEM_PROMPT = `${ROLE_AND_RULES}
@@ -68,8 +69,25 @@ export function mergeSegmentsForPrompt(
   return merged;
 }
 
-export function buildTranscriptPrompt(episodeTitle: string, segments: TranscriptSegment[] | undefined, fullText: string): string {
-  const header = `播客单集标题：${episodeTitle}\n\n以下是完整转录文字（标注了每个分段的起始时间，单位为秒）：\n\n`;
+function formatDuration(seconds: number): string {
+  const m = Math.round(seconds / 60);
+  return m >= 60 ? `${Math.floor(m / 60)} 小时 ${m % 60} 分钟` : `${m} 分钟`;
+}
+
+export function buildTranscriptPrompt(
+  episodeTitle: string,
+  segments: TranscriptSegment[] | undefined,
+  fullText: string,
+  durationSeconds?: number | null
+): string {
+  // Stating the total length gives the model a target to spread topicMap branches across. Without
+  // it, it has no way to know how much runway is left and will happily spend its whole branch
+  // budget on the opening third, silently dropping the rest of a long episode.
+  const durationLine =
+    durationSeconds && durationSeconds > 0
+      ? `节目总时长：${formatDuration(durationSeconds)}（约 ${Math.round(durationSeconds)} 秒，最后一个话题分支的时间点应当接近这个数字）\n`
+      : "";
+  const header = `播客单集标题：${episodeTitle}\n${durationLine}\n以下是完整转录文字（标注了每个分段的起始时间，单位为秒）：\n\n`;
   if (segments && segments.length > 0) {
     const body = mergeSegmentsForPrompt(segments)
       .map((s) => `[t=${Math.round(s.startSeconds)}] ${s.text}`)

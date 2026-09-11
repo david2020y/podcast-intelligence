@@ -12,6 +12,7 @@
 - [Mock Mode（无需任何密钥）](#mock-mode无需任何密钥)
 - [Supabase 配置](#supabase-配置)
 - [AI 与转录 API 配置](#ai-与转录-api-配置)
+- [本地推理与 Worker](#本地推理与-worker)
 - [Vercel 部署](#vercel-部署)
 - [Vercel Cron 定时同步](#vercel-cron-定时同步)
 - [核心流程](#核心流程)
@@ -109,6 +110,62 @@ TRANSCRIPTION_MODEL=                  # 可选，仅对 Groq/OpenAI 生效；默
 - **AssemblyAI（[src/lib/transcription/assemblyai.ts](src/lib/transcription/assemblyai.ts)）走异步流程**：提交时直接传单集的音频 URL（不需要我们自己下载/上传），立即返回；AssemblyAI 处理完成后通过 Webhook（[src/app/api/webhooks/assemblyai/route.ts](src/app/api/webhooks/assemblyai/route.ts)，用共享密钥请求头校验来源）通知我们再落库。这样不管音频多长都不会撞上 Vercel 无服务器函数的执行时长限制。开启说话人分离（`speaker_labels`），转录分段会带上"发言人 A/B"标签。
 - **Groq / OpenAI 走同步流程**（[src/lib/transcription/transcribe.ts](src/lib/transcription/transcribe.ts)）：`verbose_json` + `timestamp_granularities: ["segment"]` 获取分段时间戳；单文件超过 25MB 会返回明确错误提示（建议改配 AssemblyAI 处理长音频），不做静默截断。
 - 三者都会在 `processing_jobs` 表中记录一次处理尝试，失败后可以在单集详情页点击"重新转录 / 重新分析"重试。
+
+## 本地推理与 Worker
+
+在自己机器上跑模型，把转录和分析从云端 API 搬到本地：**免费、无速率/时长限制、数据不出本机**。网页仍然部署在 Vercel 上（手机随时能看），只有重活挪到本地。
+
+### 为什么是 Worker 而不是直接改配置
+
+Vercel 的云端函数永远连不上你本机的 `localhost`。所以本地推理靠一个常驻在本机的 worker 进程：它连同一个 Supabase，捞出"已订阅节目里还没处理的单集"，用本地模型跑完写回数据库。网页那边什么都不用改，结果会自己出现。
+
+**订阅就是入队** —— 不需要额外的按钮或队列表。worker 只处理有人订阅的节目（预置目录里那几千集没人订阅的不会被误跑），并且会把一集完整处理完（转录 → 分析）再开始下一集，让第一份可读的笔记尽快出来。
+
+### 准备
+
+```bash
+brew install whisper-cpp ffmpeg
+mkdir -p ~/.whisper-models && curl -L -o ~/.whisper-models/ggml-large-v3-turbo.bin \
+  https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin
+```
+
+LM Studio 侧：Developer → Start Server，加载模型时**把 context length 调到 32k 以上**（播客转录稿动辄 2~3 万 token，默认的 4k 必失败）。命令行等价操作：
+
+```bash
+lms server start
+lms load deepseek/deepseek-v4-flash -c 65536 --ttl 3600
+```
+
+`.env.local`（**只配在本机，不要配到 Vercel 上**）：
+
+```bash
+LMSTUDIO_BASE_URL=http://localhost:1234/v1
+LMSTUDIO_MODEL=deepseek/deepseek-v4-flash
+WHISPER_MODEL_PATH=/Users/你的用户名/.whisper-models/ggml-large-v3-turbo.bin
+```
+
+两个变量都是可选的、各自独立：只配 whisper 就只有转录走本地，分析仍走云端。任何一侧的本地调用失败（服务没开、模型没加载），都会自动回退到对应的云端 provider，不会让这一集直接失败。设置页能看到当前实际在用哪个后端。
+
+### 运行
+
+```bash
+npm run worker            # 持续处理，队列空了就每分钟看一次
+npm run worker -- --once  # 只处理一件事就退出，适合先试一次或挂 cron
+```
+
+可调项：`WORKER_POLL_SECONDS`（空闲轮询间隔，默认 60）、`WORKER_MAX_EPISODES_PER_SHOW`（每个节目最多回溯多少集，默认 20，避免一订阅就去跑 500 集的老节目）。
+
+### 实测性能（Mac Studio M3 Ultra / 512GB）
+
+| 环节 | 本地 | 对照 |
+|---|---|---|
+| 转录 33 分钟中文播客 | 100 秒 | AssemblyAI 需提交后等 webhook 排队 |
+| 转录 whisper.cpp 纯推理 | 10 分钟音频 / 13.6 秒（44x 实时） | Docker 里的 faster-whisper 只能跑 CPU，实测 2.5x，慢 17 倍 |
+| 分析 106 分钟播客 | 约 8 分钟 | DeepSeek 云端约 1~2 分钟 |
+
+分析比云端慢，瓶颈在生成端（本地约 25 tok/s，而一份详细的结构化笔记要输出上万 token）。因为 worker 是后台异步跑的，这个时间通常不需要盯着等。
+
+**本地模型用 JSON Schema 结构化输出**（[src/lib/ai/analyze.ts](src/lib/ai/analyze.ts) 的 `callLmStudio`），不是云端那套强制 tool call —— LM Studio 会按 schema 的语法约束解码，对本地模型来说比 tool calling 可靠得多。
 
 ## Vercel 部署
 

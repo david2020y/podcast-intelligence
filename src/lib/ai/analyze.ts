@@ -91,9 +91,20 @@ function buildMockAnalysis(episodeTitle: string, fullText: string, segments: Tra
   };
 }
 
-async function callClaude(model: string, episodeTitle: string, segments: TranscriptSegment[] | undefined, fullText: string): Promise<EpisodeAnalysis> {
+interface AnalysisInput {
+  episodeTitle: string;
+  segments: TranscriptSegment[] | undefined;
+  fullText: string;
+  durationSeconds: number | null;
+}
+
+function buildPrompt(input: AnalysisInput): string {
+  return buildTranscriptPrompt(input.episodeTitle, input.segments, input.fullText, input.durationSeconds);
+}
+
+async function callClaude(model: string, input: AnalysisInput): Promise<EpisodeAnalysis> {
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const userPrompt = buildTranscriptPrompt(episodeTitle, segments, fullText);
+  const userPrompt = buildPrompt(input);
 
   const message = await client.messages.create({
     model,
@@ -125,9 +136,9 @@ async function callClaude(model: string, episodeTitle: string, segments: Transcr
 }
 
 /** DeepSeek's chat/completions API is OpenAI tool-call compatible — same SDK, different base URL. */
-async function callDeepSeek(model: string, episodeTitle: string, segments: TranscriptSegment[] | undefined, fullText: string): Promise<EpisodeAnalysis> {
+async function callDeepSeek(model: string, input: AnalysisInput): Promise<EpisodeAnalysis> {
   const client = new OpenAI(getDeepSeekClientConfig());
-  const userPrompt = buildTranscriptPrompt(episodeTitle, segments, fullText);
+  const userPrompt = buildPrompt(input);
 
   // DeepSeek's V4 models default to "thinking mode", which their API rejects when combined with
   // a forced tool_choice ("400 Thinking mode does not support this tool_choice") — a known,
@@ -185,12 +196,12 @@ async function callDeepSeek(model: string, episodeTitle: string, segments: Trans
  * is guaranteed parseable and schema-shaped — measurably more reliable than tool-calling on a
  * local model, which is the usual failure mode for this kind of large nested output.
  */
-async function callLmStudio(episodeTitle: string, segments: TranscriptSegment[] | undefined, fullText: string): Promise<EpisodeAnalysis> {
+async function callLmStudio(input: AnalysisInput): Promise<EpisodeAnalysis> {
   const config = getLmStudioConfig();
   if (!config) throw new AnalysisError("未配置 LMSTUDIO_BASE_URL，无法使用本地模型");
 
   const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
-  const userPrompt = buildTranscriptPrompt(episodeTitle, segments, fullText);
+  const userPrompt = buildPrompt(input);
 
   const completion = await client.chat.completions.create({
     model: config.model,
@@ -226,16 +237,9 @@ async function callLmStudio(episodeTitle: string, segments: TranscriptSegment[] 
   return parsed.data;
 }
 
-async function callCloudProvider(
-  provider: "anthropic" | "deepseek",
-  episodeTitle: string,
-  segments: TranscriptSegment[] | undefined,
-  fullText: string
-): Promise<EpisodeAnalysis> {
+async function callCloudProvider(provider: "anthropic" | "deepseek", input: AnalysisInput): Promise<EpisodeAnalysis> {
   const model = getAiModel(provider);
-  return provider === "anthropic"
-    ? callClaude(model, episodeTitle, segments, fullText)
-    : callDeepSeek(model, episodeTitle, segments, fullText);
+  return provider === "anthropic" ? callClaude(model, input) : callDeepSeek(model, input);
 }
 
 export async function analyzeEpisode(episodeId: string): Promise<EpisodeAnalysisRecord> {
@@ -253,11 +257,17 @@ export async function analyzeEpisode(episodeId: string): Promise<EpisodeAnalysis
   try {
     const provider = resolveAiProvider();
     let model = provider ? getAiModel(provider) : "mock";
+    const input: AnalysisInput = {
+      episodeTitle: episode.title,
+      segments: transcript.segments,
+      fullText: transcript.fullText,
+      durationSeconds: episode.durationSeconds,
+    };
     let analysis: EpisodeAnalysis;
 
     if (provider === "lmstudio") {
       try {
-        analysis = await callLmStudio(episode.title, transcript.segments, transcript.fullText);
+        analysis = await callLmStudio(input);
       } catch (err) {
         // Same best-effort contract as local transcription: a stopped LM Studio server or an
         // unloaded model falls back to the cloud instead of failing the episode.
@@ -266,10 +276,10 @@ export async function analyzeEpisode(episodeId: string): Promise<EpisodeAnalysis
         if (!fallback) throw new AnalysisError(`本地模型分析失败，且没有可用的云端兜底：${message}`);
         console.warn(`[analyze] 本地模型失败，回退到 ${fallback}：${message}`);
         model = getAiModel(fallback);
-        analysis = await callCloudProvider(fallback, episode.title, transcript.segments, transcript.fullText);
+        analysis = await callCloudProvider(fallback, input);
       }
     } else if (provider === "anthropic" || provider === "deepseek") {
-      analysis = await callCloudProvider(provider, episode.title, transcript.segments, transcript.fullText);
+      analysis = await callCloudProvider(provider, input);
     } else {
       analysis = buildMockAnalysis(episode.title, transcript.fullText, transcript.segments);
     }
