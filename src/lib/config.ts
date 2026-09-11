@@ -4,8 +4,55 @@ function isSet(value: string | undefined): boolean {
   return !!value && value.trim().length > 0;
 }
 
-export type TranscriptionProvider = "assemblyai" | "groq" | "openai";
+export type TranscriptionProvider = "local-whisper" | "assemblyai" | "groq" | "openai";
 export type SyncTranscriptionProvider = "groq" | "openai";
+export type CloudTranscriptionProvider = Exclude<TranscriptionProvider, "local-whisper">;
+
+/**
+ * Local inference (LM Studio / whisper.cpp) is opt-in via an explicit env var rather than
+ * auto-detected, because the only place it can possibly work is a machine that runs the models
+ * itself. A cloud deployment (Vercel) can never reach the operator's localhost, so probing for
+ * it there would just burn a connection timeout on every job before falling back. Setting the
+ * var is what declares "this process runs next to the models" — the local worker sets it, the
+ * Vercel deployment doesn't, and each picks the right provider with no probing at all.
+ */
+export interface LmStudioConfig {
+  apiKey: string;
+  baseURL: string;
+  model: string;
+}
+
+export function getLmStudioConfig(): LmStudioConfig | null {
+  const baseURL = process.env.LMSTUDIO_BASE_URL;
+  if (!isSet(baseURL)) return null;
+  return {
+    // LM Studio ignores the key entirely, but the OpenAI SDK refuses to construct without one.
+    apiKey: process.env.LMSTUDIO_API_KEY || "lm-studio",
+    baseURL: baseURL!.trim().replace(/\/$/, ""),
+    model: process.env.LMSTUDIO_MODEL || "deepseek/deepseek-v4-flash",
+  };
+}
+
+export interface LocalWhisperConfig {
+  cliPath: string;
+  modelPath: string;
+  threads: number;
+  language: string;
+}
+
+export function getLocalWhisperConfig(): LocalWhisperConfig | null {
+  const modelPath = process.env.WHISPER_MODEL_PATH;
+  if (!isSet(modelPath)) return null;
+  return {
+    cliPath: process.env.WHISPER_CLI_PATH || "whisper-cli",
+    modelPath: modelPath!.trim(),
+    // whisper.cpp does the heavy lifting on the GPU via Metal; the thread count only affects
+    // the CPU-side pre/post-processing, so a modest default is fine.
+    threads: Number(process.env.WHISPER_THREADS) || 8,
+    // "auto" lets whisper detect per-episode, which matters for a mixed 中文/English library.
+    language: process.env.WHISPER_LANGUAGE || "auto",
+  };
+}
 
 const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
 const DEFAULT_MODEL_BY_SYNC_PROVIDER: Record<SyncTranscriptionProvider, string> = {
@@ -23,6 +70,16 @@ const DEFAULT_MODEL_BY_SYNC_PROVIDER: Record<SyncTranscriptionProvider, string> 
  * TRANSCRIPTION_PROVIDER wins over this default ordering.
  */
 export function resolveTranscriptionProvider(): TranscriptionProvider | null {
+  const explicit = process.env.TRANSCRIPTION_PROVIDER?.trim().toLowerCase();
+  if (explicit === "local-whisper" && getLocalWhisperConfig()) return "local-whisper";
+  // Local first: it's free, unmetered, has no 25MB/duration ceiling, and on Apple Silicon runs
+  // well above realtime — so when this process has the models, nothing cloud-side beats it.
+  if (!explicit && getLocalWhisperConfig()) return "local-whisper";
+  return resolveCloudTranscriptionProvider();
+}
+
+/** Cloud-only resolution — also the fallback path when local whisper fails mid-job. */
+export function resolveCloudTranscriptionProvider(): CloudTranscriptionProvider | null {
   const hasAssemblyAiKey = isSet(process.env.ASSEMBLYAI_API_KEY);
   const hasGroqKey = isSet(process.env.GROQ_API_KEY);
   const hasOpenAiKey = isSet(process.env.OPENAI_API_KEY);
@@ -37,7 +94,8 @@ export function resolveTranscriptionProvider(): TranscriptionProvider | null {
   return null;
 }
 
-export type AiProvider = "anthropic" | "deepseek";
+export type AiProvider = "lmstudio" | "anthropic" | "deepseek";
+export type CloudAiProvider = Exclude<AiProvider, "lmstudio">;
 
 const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
 
@@ -49,6 +107,14 @@ const DEEPSEEK_BASE_URL = "https://api.deepseek.com";
  * output quality on a few episodes.
  */
 export function resolveAiProvider(): AiProvider | null {
+  const explicit = process.env.AI_PROVIDER?.trim().toLowerCase();
+  if (explicit === "lmstudio" && getLmStudioConfig()) return "lmstudio";
+  if (!explicit && getLmStudioConfig()) return "lmstudio";
+  return resolveCloudAiProvider();
+}
+
+/** Cloud-only resolution — also the fallback path when the local model fails mid-job. */
+export function resolveCloudAiProvider(): CloudAiProvider | null {
   const hasAnthropicKey = isSet(process.env.ANTHROPIC_API_KEY);
   const hasDeepSeekKey = isSet(process.env.DEEPSEEK_API_KEY);
   const explicit = process.env.AI_PROVIDER?.trim().toLowerCase();
@@ -61,6 +127,7 @@ export function resolveAiProvider(): AiProvider | null {
 }
 
 export function getAiModel(provider: AiProvider): string {
+  if (provider === "lmstudio") return getLmStudioConfig()?.model ?? "lmstudio";
   // "deepseek-chat" was the old alias, retired 2026-07-24 — deepseek-v4-pro is the current
   // GA model ID. Pro (not the cheaper Flash) by default: this task's payoff is accuracy on a
   // strict "never fabricate a quote or timestamp" extraction, not raw throughput.
@@ -85,8 +152,12 @@ export function getAppMode(): AppMode {
     hasSupabase,
     hasAnthropicKey: isSet(process.env.ANTHROPIC_API_KEY),
     aiProvider,
+    // Named "hasTranscriptionKey" from when every backend was an API key; local whisper needs
+    // no key, so this now means "some transcription backend is available".
     hasTranscriptionKey: transcriptionProvider !== null,
     transcriptionProvider,
+    localAi: getLmStudioConfig() !== null,
+    localWhisper: getLocalWhisperConfig() !== null,
   };
 }
 

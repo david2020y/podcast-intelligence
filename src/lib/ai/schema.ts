@@ -112,5 +112,22 @@ export const ANALYSIS_TOOL_INPUT_SCHEMA = {
       description: "值得进一步研究但节目中未充分解答的问题",
     },
   },
-  required: ["oneLiner", "summary", "topicMap", "keyPoints", "tags"],
+  // Every field is required so the model always emits the key, even if the value is an empty
+  // array. Benchmarking the local model found it silently dropping optional fields entirely
+  // (keyData came back missing on a transcript full of figures) — an empty array it has to
+  // write is a much weaker temptation to skip than a field it can omit outright. Nothing here
+  // forces non-empty content, so "节目没提到数字" is still expressible as [].
+  required: [
+    "oneLiner",
+    "summary",
+    "topicMap",
+    "keyPoints",
+    "keyData",
+    "guestConclusions",
+    "people",
+    "entities",
+    "tags",
+    "keyQuotes",
+    "openQuestions",
+  ],
 } as const;

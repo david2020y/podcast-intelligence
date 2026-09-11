@@ -150,7 +150,11 @@ export interface AppMode {
   mockMode: boolean;
   hasSupabase: boolean;
   hasAnthropicKey: boolean;
-  aiProvider: "anthropic" | "deepseek" | null;
+  aiProvider: "lmstudio" | "anthropic" | "deepseek" | null;
   hasTranscriptionKey: boolean;
-  transcriptionProvider: "assemblyai" | "groq" | "openai" | null;
+  transcriptionProvider: "local-whisper" | "assemblyai" | "groq" | "openai" | null;
+  // Whether this process sits next to locally-running models (set by the local worker, never
+  // by the Vercel deployment). Both fall back to their cloud provider if the local call fails.
+  localAi: boolean;
+  localWhisper: boolean;
 }

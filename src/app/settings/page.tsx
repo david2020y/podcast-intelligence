@@ -7,27 +7,34 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { fetcher } from "@/lib/fetcher";
 
+type AiProviderId = "lmstudio" | "anthropic" | "deepseek";
+type TranscriptionProviderId = "local-whisper" | "assemblyai" | "groq" | "openai";
+
 interface ModeInfo {
   mockMode: boolean;
   hasSupabase: boolean;
   hasAnthropicKey: boolean;
-  aiProvider: "anthropic" | "deepseek" | null;
+  aiProvider: AiProviderId | null;
   aiModel: string | null;
   hasTranscriptionKey: boolean;
-  transcriptionProvider: "assemblyai" | "groq" | "openai" | null;
+  transcriptionProvider: TranscriptionProviderId | null;
   transcriptionModel: string | null;
   cronConfigured: boolean;
   webhookConfigured: boolean;
   supabaseUrl: string | null;
+  localAi: boolean;
+  localWhisper: boolean;
 }
 
-const TRANSCRIPTION_PROVIDER_LABEL: Record<"assemblyai" | "groq" | "openai", string> = {
+const TRANSCRIPTION_PROVIDER_LABEL: Record<TranscriptionProviderId, string> = {
+  "local-whisper": "本地 whisper.cpp",
   assemblyai: "AssemblyAI",
   groq: "Groq",
   openai: "OpenAI",
 };
 
-const AI_PROVIDER_LABEL: Record<"anthropic" | "deepseek", string> = {
+const AI_PROVIDER_LABEL: Record<AiProviderId, string> = {
+  lmstudio: "本地 LM Studio",
   anthropic: "Anthropic Claude",
   deepseek: "DeepSeek",
 };
@@ -79,14 +86,15 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">AI 分析</CardTitle>
-              <CardDescription>Anthropic Claude 或 DeepSeek 二选一，自动检测（Claude 优先）</CardDescription>
+              <CardDescription>本地 LM Studio 优先；未配置或调用失败时自动回退到 Claude / DeepSeek</CardDescription>
             </CardHeader>
             <CardContent>
               <Row
-                label="连接状态"
-                value={data.aiProvider ? `已配置 · 使用 ${AI_PROVIDER_LABEL[data.aiProvider]}` : "未配置（使用 Mock 分析）"}
+                label="当前后端"
+                value={data.aiProvider ? `${AI_PROVIDER_LABEL[data.aiProvider]}` : "未配置（使用 Mock 分析）"}
                 ok={!!data.aiProvider}
               />
+              <Row label="本地推理" value={data.localAi ? "已启用（LM Studio）" : "未启用（此进程不在模型所在机器上）"} ok={data.localAi} />
               {data.aiModel && <Row label="模型" value={data.aiModel} />}
               <Row label="默认分析语言" value="中文（zh-CN）" />
             </CardContent>
@@ -95,19 +103,25 @@ export default function SettingsPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base">音频转录</CardTitle>
-              <CardDescription>AssemblyAI / Groq / OpenAI 三选一，自动检测（AssemblyAI 优先）</CardDescription>
+              <CardDescription>本地 whisper.cpp 优先；未配置或调用失败时自动回退到 AssemblyAI / Groq / OpenAI</CardDescription>
             </CardHeader>
             <CardContent>
               <Row
-                label="连接状态"
+                label="当前后端"
                 value={
                   data.transcriptionProvider
-                    ? `已配置 · 使用 ${TRANSCRIPTION_PROVIDER_LABEL[data.transcriptionProvider]}`
+                    ? TRANSCRIPTION_PROVIDER_LABEL[data.transcriptionProvider]
                     : "未配置（使用 Mock 转录）"
                 }
                 ok={data.hasTranscriptionKey}
               />
-              {data.transcriptionProvider === "assemblyai" ? (
+              <Row label="本地转录" value={data.localWhisper ? "已启用（whisper.cpp）" : "未启用（此进程不在模型所在机器上）"} ok={data.localWhisper} />
+              {data.transcriptionProvider === "local-whisper" ? (
+                <>
+                  <Row label="单文件大小限制" value="无限制（本地推理，不需要上传）" />
+                  <Row label="处理方式" value="同步，调用本机 whisper-cli" />
+                </>
+              ) : data.transcriptionProvider === "assemblyai" ? (
                 <>
                   <Row label="单文件大小限制" value="5GB / 最长 10 小时" />
                   <Row label="处理方式" value="异步（Webhook 回调），支持长音频" />

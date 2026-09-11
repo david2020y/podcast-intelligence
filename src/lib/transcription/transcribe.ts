@@ -2,16 +2,21 @@ import OpenAI, { toFile } from "openai";
 import {
   getAppMode,
   resolveTranscriptionProvider,
+  resolveCloudTranscriptionProvider,
   getTranscriptionModel,
   getTranscriptionClientConfig,
+  getLocalWhisperConfig,
   getAppBaseUrl,
   ASSEMBLYAI_WEBHOOK_HEADER_NAME,
   ASSEMBLYAI_WEBHOOK_SECRET,
 } from "@/lib/config";
+import { transcribeWithLocalWhisper } from "@/lib/transcription/local-whisper";
+import type { CloudTranscriptionProvider } from "@/lib/config";
 import { fetchSafe } from "@/lib/rss/fetchSafe";
 import { submitAssemblyAiJob } from "@/lib/transcription/assemblyai";
 import { extractYoutubeVideoId, fetchYoutubeCaptions } from "@/lib/youtube/captions";
 import * as episodesRepo from "@/lib/repo/episodes";
+import * as showsRepo from "@/lib/repo/shows";
 import * as transcriptsRepo from "@/lib/repo/transcripts";
 import * as jobsRepo from "@/lib/repo/jobs";
 import { TranscriptSegmentSchema } from "@/lib/validation/analysis";
@@ -164,15 +169,46 @@ export async function transcribeEpisode(episodeId: string): Promise<TranscribeOu
 
     if (!episode.audioUrl) throw new TranscriptionError("该单集没有可用的音频地址");
 
-    if (provider === "assemblyai") {
+    let cloudProvider: CloudTranscriptionProvider;
+    if (provider === "local-whisper") {
+      try {
+        // The joined episode.show ref doesn't carry `language`, and it's worth one extra read
+        // here: it's what keeps whisper from mis-detecting the language (see local-whisper.ts).
+        const show = await showsRepo.getShowById(episode.showId);
+        const local = await transcribeWithLocalWhisper(episode.audioUrl, getLocalWhisperConfig()!, show?.language);
+        const transcript = await transcriptsRepo.saveTranscript(
+          episodeId,
+          local.fullText,
+          local.language,
+          "local-whisper",
+          local.segments
+        );
+        await episodesRepo.updateEpisodeStatus(episodeId, { transcriptStatus: "completed" });
+        await jobsRepo.finishProcessingJob(job.id, { status: "completed" });
+        return { status: "completed", transcript };
+      } catch (err) {
+        // Local inference is best-effort: the models live on one machine, so anything from a
+        // stopped server to a missing binary should degrade to the cloud path rather than fail
+        // the episode outright.
+        const message = err instanceof Error ? err.message : "本地转录失败";
+        const fallback = resolveCloudTranscriptionProvider();
+        if (!fallback) throw new TranscriptionError(`本地转录失败，且没有可用的云端兜底：${message}`);
+        console.warn(`[transcribe] 本地 whisper 失败，回退到 ${fallback}：${message}`);
+        cloudProvider = fallback;
+      }
+    } else {
+      cloudProvider = provider;
+    }
+
+    if (cloudProvider === "assemblyai") {
       // Async: job submission just needs to succeed. The transcript itself, episode status,
       // and this processing job are all finished later by the webhook handler.
       await startAssemblyAiTranscription(episodeId, episode.audioUrl);
       return { status: "processing" };
     }
 
-    const { fullText, segments, language } = await transcribeWithSyncProvider(provider, episode.audioUrl, episode.durationSeconds);
-    const transcript = await transcriptsRepo.saveTranscript(episodeId, fullText, language, provider, segments);
+    const { fullText, segments, language } = await transcribeWithSyncProvider(cloudProvider, episode.audioUrl, episode.durationSeconds);
+    const transcript = await transcriptsRepo.saveTranscript(episodeId, fullText, language, cloudProvider, segments);
     await episodesRepo.updateEpisodeStatus(episodeId, { transcriptStatus: "completed" });
     await jobsRepo.finishProcessingJob(job.id, { status: "completed" });
     return { status: "completed", transcript };
