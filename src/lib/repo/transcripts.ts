@@ -4,6 +4,40 @@ import { mockStore, newId, nowIso } from "@/lib/mock/store";
 import type { EpisodeTranscript, TranscriptSegment } from "@/lib/types";
 import type { TranscriptSegmentInput } from "@/lib/validation/analysis";
 
+/** PostgREST caps a single response at 1000 rows, and silently — you just get a short array.
+ * A whisper.cpp transcript of a normal-length episode runs well past that (the cloud providers
+ * segment far more coarsely, which is why this never surfaced before), and a truncated read
+ * means the tail of the episode silently disappears from analysis. So page explicitly. */
+const SEGMENT_PAGE_SIZE = 1000;
+
+/** Raw row shape; numeric columns come back as strings from PostgREST's `numeric` type. */
+interface TranscriptSegmentRow {
+  id: string;
+  transcript_id: string;
+  segment_index: number;
+  start_seconds: number | string;
+  end_seconds: number | string;
+  text: string;
+}
+
+async function fetchAllSegments(
+  supabase: ReturnType<typeof getSupabaseAdmin>,
+  transcriptId: string
+): Promise<TranscriptSegmentRow[]> {
+  const all: TranscriptSegmentRow[] = [];
+  for (let from = 0; ; from += SEGMENT_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("transcript_segments")
+      .select("*")
+      .eq("transcript_id", transcriptId)
+      .order("segment_index", { ascending: true })
+      .range(from, from + SEGMENT_PAGE_SIZE - 1);
+    if (error) throw error;
+    all.push(...((data ?? []) as TranscriptSegmentRow[]));
+    if (!data || data.length < SEGMENT_PAGE_SIZE) return all;
+  }
+}
+
 export async function getTranscript(episodeId: string): Promise<EpisodeTranscript | null> {
   const { mockMode } = getAppMode();
   if (mockMode) {
@@ -18,12 +52,7 @@ export async function getTranscript(episodeId: string): Promise<EpisodeTranscrip
   if (error) throw error;
   if (!data) return null;
 
-  const { data: segments, error: segErr } = await supabase
-    .from("transcript_segments")
-    .select("*")
-    .eq("transcript_id", data.id)
-    .order("segment_index", { ascending: true });
-  if (segErr) throw segErr;
+  const segments = await fetchAllSegments(supabase, data.id);
 
   return {
     id: data.id,
@@ -86,9 +115,11 @@ export async function saveTranscript(
   if (error) throw error;
 
   await supabase.from("transcript_segments").delete().eq("transcript_id", transcript.id);
-  if (segments.length > 0) {
+  // Insert in chunks: a local-whisper transcript can be several thousand segments, which is a
+  // multi-megabyte single request otherwise.
+  for (let i = 0; i < segments.length; i += SEGMENT_PAGE_SIZE) {
     const { error: insErr } = await supabase.from("transcript_segments").insert(
-      segments.map((s) => ({
+      segments.slice(i, i + SEGMENT_PAGE_SIZE).map((s) => ({
         transcript_id: transcript.id,
         segment_index: s.index,
         start_seconds: s.startSeconds,

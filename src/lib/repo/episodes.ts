@@ -250,3 +250,65 @@ export async function countEpisodesByStatus(
 export function resolveShowForEpisode(episode: PodcastEpisode) {
   return findShow(episode.showId);
 }
+
+export type PendingWorkKind = "transcribe" | "analyze";
+
+export interface PendingWorkItem {
+  episodeId: string;
+  title: string;
+  showId: string;
+  kind: PendingWorkKind;
+}
+
+/**
+ * Next unit of work for the local worker.
+ *
+ * Scope is "episodes of shows somebody actually subscribes to", which makes subscribing the
+ * enqueue action — no extra queue table, no API change, no new button. The seeded catalog has
+ * thousands of unsubscribed episodes sitting at transcript_status='pending'; without this join
+ * a worker would happily chew through all of them.
+ *
+ * Analysis is checked before transcription so an episode gets finished end-to-end before the
+ * next one starts. Draining all transcription first would mean waiting for an entire show to be
+ * transcribed before a single readable set of notes exists; this way the first complete episode
+ * lands as early as possible, which is the whole point of leaving it running in the background.
+ */
+export async function findPendingWork(maxEpisodesPerShow: number): Promise<PendingWorkItem | null> {
+  const { mockMode } = getAppMode();
+  if (mockMode) return null;
+
+  const supabase = getSupabaseAdmin();
+  const { data: subs, error: subErr } = await supabase
+    .from("subscriptions")
+    .select("show_id")
+    .eq("status", "active");
+  if (subErr) throw subErr;
+
+  const showIds = Array.from(new Set((subs ?? []).map((s) => s.show_id as string)));
+  if (showIds.length === 0) return null;
+
+  for (const kind of ["analyze", "transcribe"] as const) {
+    for (const showId of showIds) {
+      let query = supabase
+        .from("podcast_episodes")
+        .select("id, title, show_id")
+        .eq("show_id", showId)
+        .order("published_at", { ascending: false })
+        .limit(maxEpisodesPerShow);
+
+      query =
+        kind === "transcribe"
+          ? query.eq("transcript_status", "pending").not("audio_url", "is", null)
+          : query.eq("transcript_status", "completed").eq("analysis_status", "pending");
+
+      const { data, error } = await query;
+      if (error) throw error;
+      const row = (data ?? [])[0];
+      if (row) {
+        return { episodeId: row.id as string, title: row.title as string, showId: row.show_id as string, kind };
+      }
+    }
+  }
+
+  return null;
+}
