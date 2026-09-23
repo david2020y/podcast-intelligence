@@ -81,10 +81,12 @@
   - rilvegostomig（AZ PD-1×TIGIT）：约 12 项 P3，Compugen 收取中个位数特许权使用费，剩余里程碑 $195M。
   - GS-0321：Gilead，P1。
 - **现金**：$125.3M，可用至 2029。2025-12 向 AZ 出售部分特许权，获 $65M + $25M。
+- **同类风险**：同类 TIGIT 药物的 Phase 3 已全部失败或终止。详见 `deep-dive/CGEN.md`。
   - 来源：Compugen Q2 PR 2026-08-03
 
 ### BDTX — Black Diamond｜计算结构设计
 - **管线**：silevertinib 一线非经典 EGFR NSCLC（n=43）。ORR 60%，颅内 ORR 86%，mPFS 15.2 个月（ASCO 2026 Abstract 8519）。GBM 适应症 P2（NCT07326566）。
+- **耐受性风险**：200mg 下 3 级不良事件 60%、77% 患者需减量；关键试验拟改用 150mg。详见 `deep-dive/BDTX.md`。
 - **现金**：$110.5M，约等于市值，可用至 2H28，但不足以覆盖关键试验。有 $150M ATM。
   - 来源：[SEC 8-K Q2](https://www.sec.gov/Archives/edgar/data/0001701541/000170154126000023/bdtx-exhibit991_q22026.htm)
 
